@@ -1,19 +1,7 @@
 #ifndef Note_H
 #define Note_H
 #include <QString>
-/*
-class Interval {
-    enum eType {
-        DA,//重増
-        A,//増
-        Mj,//長
-        P,//完全
-        Mn,//短
-        D,//減
-        DD//重減
-    };
-};
-*/
+
 class Note {
 public:
     enum eNoteName {
@@ -33,18 +21,24 @@ public:
     };
 private:
     eNoteName _name;
+    double _cent;
     int _oct;
 public:
     Note();
-    Note(Note &);
+    Note(const Note &);
     Note(QString);
-    Note(eNoteName, int);
-    Note(double f);
+    Note(eNoteName, double, int);
+    Note(const double f, const double A4 = 440.0);
     ~Note();
+    eNoteName getName() const;
+    double getCent() const;
+    int getOct() const;
     QString toStr() const;
-    double toHz(double A4 = 440.0) const;
+    double toHz(const double A4 = 440.0) const;
     static Note fromStr(QString);
-    static Note fromHz(double f, double A4 = 440.0);
+    static Note fromHz(const double f, const double A4 = 440.0);
+    friend Note operator+(const Note &a, int b);
+    friend Note operator-(const Note &a, int b);
 
 };
 

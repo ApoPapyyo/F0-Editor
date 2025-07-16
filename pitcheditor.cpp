@@ -1,7 +1,6 @@
 #include "pitcheditor.h"
 #include <algorithm>
-#include "midi.h"
-
+#include <QCursor>
 const int piano_structure[12] = {0, 1, 0, 1, 0, 0, 1, 0, 1, 0, 1, 0};
 const int oct_max = 8;
 PitchEditor::PitchEditor(QWidget *parent)
@@ -9,9 +8,10 @@ PitchEditor::PitchEditor(QWidget *parent)
     , piano_width(50)
     , piano_keyboard_width(30)
     , x_scroll_offset(0)
-    , y_scroll_offset(piano_keyboard_width*12*3)
+    , y_scroll_offset(piano_keyboard_width*(12*4)-height()/2)
 {
     setFocusPolicy(Qt::StrongFocus);
+    setMouseTracking(true);
 }
 
 void PitchEditor::paintEvent(QPaintEvent *ev)
@@ -55,7 +55,30 @@ void PitchEditor::wheelEvent(QWheelEvent *ev)
 {
     auto scry = ev->angleDelta().y();
     y_scroll_offset -= scry;
-    if(y_scroll_offset < 0 || (y_scroll_offset+height())/piano_keyboard_width/12 >= oct_max+1) y_scroll_offset += scry;
+    if(y_scroll_offset < 0)
+        y_scroll_offset = 0;
+    else if ((y_scroll_offset+height())/piano_keyboard_width/12 >= oct_max+1) y_scroll_offset = piano_keyboard_width*12*oct_max-height()/2;
     ev->accept();
     update();
+}
+
+Note PitchEditor::mouseSound() const
+{
+    QPoint p(QCursor::pos());
+    p = this->mapFromGlobal(p);
+    int y(y_scroll_offset+p.y()-piano_keyboard_width/2);
+    double y_ = static_cast<double>(y)/piano_keyboard_width;
+    y_ = 12*oct_max - y_;
+    return Note(Note::B, y_, 0);
+}
+
+void PitchEditor::mouseMoveEvent(QMouseEvent *ev)
+{
+    Note n(mouseSound());
+    emit mouseMoved(QString(tr("%1Hzは%2(%3セント). A4=440Hzとした%2は%4Hz.")).arg(n.toHz()).arg(n.toStr()).arg(n.getCent()*100).arg(Note(n.getName(), 0.0, n.getOct()).toHz()));
+}
+
+int PitchEditor::soundPosition(Note n)
+{
+
 }

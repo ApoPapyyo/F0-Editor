@@ -7,31 +7,49 @@
 
 Note::Note()
     : _name(None)
+    , _cent(0.0)
     , _oct(0)
 {}
 
-Note::Note(Note &n)
+Note::Note(const Note &n)
     : _name(n._name)
+    , _cent(n._cent)
     , _oct(n._oct)
 {}
 
-Note::Note(eNoteName n, int o)
+Note::Note(eNoteName n, double c, int o)
     : _name(n)
+    , _cent(c)
     , _oct(o)
-{}
+{
+    if(-1.0 >= _cent || _cent >= 1.0) {
+        int t(static_cast<int>(_cent));
+        _cent -= t;
+        *this = *this + t;
+    }
+    if (-0.5 >= _cent) {
+        _cent = 1.0 + _cent;
+        *this = *this - 1;
+    } else if (_cent > 0.5) {
+        _cent = _cent - 1.0;
+        *this = *this + 1;
+    }
+}
 
 Note::Note(QString str)
     : _name(None)
+    , _cent(0.0)
     , _oct(0)
 {
     *this = fromStr(str);
 }
 
-Note::Note(double f)
+Note::Note(const double f, const double A4)
     : _name(None)
+    , _cent(0.0)
     , _oct(0)
 {
-    *this = fromHz(f);
+    *this = fromHz(f, A4);
 }
 
 Note::~Note()
@@ -44,7 +62,7 @@ Note Note::fromStr(const QString str)
 
     if (!match.hasMatch()) {
         qDebug() << "Match Error";
-        return Note(None, 0);
+        return Note(None, 0.0, 0);
     }
 
     QChar name = match.captured(1)[0].toLower();
@@ -92,7 +110,7 @@ Note Note::fromStr(const QString str)
     n = static_cast<eNoteName>(tmp);
     int octave = match.captured(3).toInt();
 
-    return Note(n, octave);
+    return Note(n, 0.0, octave);
 }
 
 QString Note::toStr() const
@@ -141,28 +159,75 @@ QString Note::toStr() const
     }
     QString ret(n);
     if (_name != None) ret += QString("%1").arg(_oct);
+    //if (_cent != 0.0) ret += QString("(%1 cent)").arg(_cent);
     return ret;
 }
 
-double Note::toHz(double A4) const
+double Note::toHz(const double A4) const
 {
     if (_name == None) return 0.0;
     int name(static_cast<int>(_name) - 10);
     int oct(_oct - 4);
-    double sound(oct*12 + name);
+    double sound(oct*12.0 + (_cent+name));
     return std::pow(2.0, sound/12.0)*A4;
 }
 // 2^(x/12) = s
 // x/12 = log2(s)
 // x = 12log2(s)
 
-Note Note::fromHz(double f, double A4)
+Note Note::fromHz(const double f, const double A4)
 {
     if (f <= 0.0) return Note();
     double s(f/A4);
     double pitch(12.0*std::log2(s));
-    int pitch_(std::round(pitch) + 12*4 + 10);
+    pitch += 12*4 + 10;
+    int pitch_(std::round(pitch));
     int oct(pitch_ >= 0 ? (pitch_%12 == 0 ? pitch_/12 - 1 : pitch_/12) : 0);
     int name(pitch_ >= 0 ? (pitch_%12 == 0 ? 12 : pitch_%12) : 0);
-    return Note(static_cast<eNoteName>(name), oct);
+    return Note(static_cast<eNoteName>(name), pitch - pitch_, oct);
+}
+
+Note operator+(const Note &a, int b)
+{
+    if(b == 0 || a._name == Note::None) return a;
+    else if(b > 0) {
+        int t(static_cast<int>(a._name)), o(a._oct);
+        t += b;
+        o += (t-1)/12;
+        t = (t-1)%12 + 1;
+        Note::eNoteName t_(static_cast<Note::eNoteName>(t));
+        return Note(t_, a._cent, o);
+    } else if (b < 0) {
+        return a - (-b);
+    }
+}
+
+Note operator-(const Note &a, int b)
+{
+    if(b == 0 || a._name == Note::None) return a;
+    else if(b > 0) {
+        int t(static_cast<int>(a._name)), o(a._oct);
+        t -= b;
+        o -= (t-1)/12;
+        t = (t-1)%12 + 1;
+        Note::eNoteName t_(static_cast<Note::eNoteName>(t));
+        return Note(t_, a._cent, o);
+    } else if (b < 0) {
+        return a + (-b);
+    }
+}
+
+Note::eNoteName Note::getName() const
+{
+    return _name;
+}
+
+double Note::getCent() const
+{
+    return _cent;
+}
+
+int Note::getOct() const
+{
+    return _oct;
 }

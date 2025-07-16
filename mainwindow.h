@@ -21,6 +21,8 @@ public:
 private:
     Ui::MainWindow *ui;
     PitchEditor *pe;
+private slots:
+    void updateStatusBar(const QString &text);
 
 };
 #endif // MAINWINDOW_H
