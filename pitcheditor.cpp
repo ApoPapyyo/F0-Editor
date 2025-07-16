@@ -6,7 +6,7 @@ const int oct_max = 8;
 PitchEditor::PitchEditor(QWidget *parent)
     : QWidget{parent}
     , piano_width(50)
-    , piano_keyboard_width(30)
+    , piano_keyboard_width(20)
     , x_scroll_offset(0)
     , y_scroll_offset(piano_keyboard_width*(12*4)-height()/2)
 {
@@ -57,7 +57,7 @@ void PitchEditor::wheelEvent(QWheelEvent *ev)
     y_scroll_offset -= scry;
     if(y_scroll_offset < 0)
         y_scroll_offset = 0;
-    else if ((y_scroll_offset+height())/piano_keyboard_width/12 >= oct_max+1) y_scroll_offset = piano_keyboard_width*12*oct_max-height()/2;
+    else if ((y_scroll_offset+height())/piano_keyboard_width/12 >= oct_max+1) y_scroll_offset += scry;
     ev->accept();
     update();
 }
