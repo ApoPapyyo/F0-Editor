@@ -23,7 +23,7 @@ FORMS += \
     mainwindow.ui
 
 TRANSLATIONS += \
-    f0-editor_en_US.ts
+    i18n/f0-editor_en.ts
 CONFIG += lrelease
 CONFIG += embed_translations
 
