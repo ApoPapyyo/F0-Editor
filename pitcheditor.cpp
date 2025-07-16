@@ -1,12 +1,13 @@
 #include "pitcheditor.h"
 #include <algorithm>
+#include "midi.h"
 
 const int piano_structure[12] = {0, 1, 0, 1, 0, 0, 1, 0, 1, 0, 1, 0};
 const int oct_max = 8;
 PitchEditor::PitchEditor(QWidget *parent)
     : QWidget{parent}
     , piano_width(50)
-    , piano_keyboard_width(20)
+    , piano_keyboard_width(30)
     , x_scroll_offset(0)
     , y_scroll_offset(piano_keyboard_width*12*3)
 {
@@ -24,11 +25,12 @@ void PitchEditor::paintEvent(QPaintEvent *ev)
 void PitchEditor::draw_piano(QPainter &painter)
 {
     int wr(0), oct(oct_max - y_scroll_offset/piano_keyboard_width/12);
+    int i;
     painter.setBrush(QColor(255, 255, 255));
     painter.drawRect(QRect(0, 0, piano_width, height()));
     painter.setBrush(QColor(0, 0, 0));
     painter.drawLine(piano_width, 0, piano_width, height());
-    for(int i(y_scroll_offset/piano_keyboard_width); i*piano_keyboard_width - y_scroll_offset < height(); i++) {
+    for(i = y_scroll_offset/piano_keyboard_width; i*piano_keyboard_width - y_scroll_offset < height() && oct > -1; i++) {
         if (piano_structure[11-i%12]) {
             painter.drawRect(QRect(0, i*piano_keyboard_width - y_scroll_offset, piano_width/2, piano_keyboard_width));
             painter.drawLine(piano_width/2, i*piano_keyboard_width+piano_keyboard_width/2 - y_scroll_offset, piano_width, i*piano_keyboard_width+piano_keyboard_width/2 - y_scroll_offset);
@@ -44,13 +46,16 @@ void PitchEditor::draw_piano(QPainter &painter)
             wr++;
         }
     }
+    if(oct == -1) {
+        painter.drawLine(0, i*piano_keyboard_width - y_scroll_offset, piano_width, i*piano_keyboard_width - y_scroll_offset);
+    }
 }
 
 void PitchEditor::wheelEvent(QWheelEvent *ev)
 {
     auto scry = ev->angleDelta().y();
     y_scroll_offset -= scry;
-    if(y_scroll_offset < 0 || (y_scroll_offset+height())/piano_keyboard_width/12 > oct_max) y_scroll_offset += scry;
+    if(y_scroll_offset < 0 || (y_scroll_offset+height())/piano_keyboard_width/12 >= oct_max+1) y_scroll_offset += scry;
     ev->accept();
     update();
 }

@@ -1,63 +1,168 @@
 #include "midi.h"
 #include <QRegularExpression>
 #include <QRegularExpressionMatch>
+#include <QStringList>
+#include <cmath>
+#include <QDebug>
 
 Note::Note()
-    : name(None)
-    , oct(0)
+    : _name(None)
+    , _oct(0)
 {}
 
 Note::Note(Note &n)
-    : name(n.name)
-    , oct(n.oct)
+    : _name(n._name)
+    , _oct(n._oct)
 {}
 
 Note::Note(eNoteName n, int o)
-    : name(n)
-    , oct(o)
+    : _name(n)
+    , _oct(o)
 {}
 
 Note::Note(QString str)
-    : name(None)
-    , oct(0)
+    : _name(None)
+    , _oct(0)
 {
+    *this = fromStr(str);
 }
+
+Note::Note(double f)
+    : _name(None)
+    , _oct(0)
+{
+    *this = fromHz(f);
+}
+
+Note::~Note()
+{}
 
 Note Note::fromStr(const QString str)
 {
-    QRegularExpression re("^([A-Ga-g])([#b]?)(\\d+)$");
+    QRegularExpression re("^([A-Ga-g])(\\+\\+|\\-\\-|##|bb|\\+|\\-|#|b|x)?(\\d+)$");
     QRegularExpressionMatch match = re.match(str.trimmed());
 
     if (!match.hasMatch()) {
-        return Note(C, 4);
+        qDebug() << "Match Error";
+        return Note(None, 0);
     }
 
-    QString note = match.captured(1).toUpper() + match.captured(2); // 例: "C#", "Db"
-    if(note.length() == 2) {
-        if(note[1] == QChar('b')) {
-            if(note[0] != QChar('A'))
-                note[0] = QChar(note[0].unicode() - 1);
-            else
-                note[0] = QChar('A');
-            note[1] = QChar('#');
-        }
-    }
+    QChar name = match.captured(1)[0].toLower();
+    QString s = match.captured(2);
     eNoteName n;
-    if(note == "C") n = C;
-    else if(note == "C#") n = Cs;
-    else if(note == "D") n = D;
-    else if(note == "D#") n = Ds;
-    else if(note == "E") n = E;
-    else if(note == "F") n = F;
-    else if(note == "F#") n = Fs;
-    else if(note == "G") n = G;
-    else if(note == "G#") n = Gs;
-    else if(note == "A") n = A;
-    else if(note == "A#") n = As;
-    else if(note == "B") n = B;
-    else n = None;
+    switch(name.unicode()) {
+    case 'a':
+        n = A;
+        break;
+    case 'b':
+        n = B;
+        break;
+    case 'c':
+        n = C;
+        break;
+    case 'd':
+        n = D;
+        break;
+    case 'e':
+        n = E;
+        break;
+    case 'f':
+        n = F;
+        break;
+    case 'g':
+        n = G;
+        break;
+    default:
+        n = None;
+    }
+    int tmp(static_cast<int>(n));
+    if (QStringList({"#", "+"}).contains(s)) {
+        tmp++;
+        if(tmp > 12) tmp = 1;
+    } else if (QStringList({"b", "-"}).contains(s)) {
+        tmp--;
+        if(tmp <= 0) tmp = 12;
+    } else if (QStringList({"x", "##", "++"}).contains(s)) {
+        tmp+=2;
+        if(tmp > 12) tmp %= 12;
+    } else if (QStringList({"bb", "--"}).contains(s)) {
+        tmp-=2;
+        if(tmp <= 0) tmp+=12;
+    }
+    n = static_cast<eNoteName>(tmp);
     int octave = match.captured(3).toInt();
 
     return Note(n, octave);
 }
 
+QString Note::toStr() const
+{
+    QString n;
+    switch(_name) {
+    case None:
+        n = "None";
+        break;
+    case C:
+        n = "C";
+        break;
+    case Cs:
+        n = "C#";
+        break;
+    case D:
+        n = "D";
+        break;
+    case Ds:
+        n = "D#";
+        break;
+    case E:
+        n = "E";
+        break;
+    case F:
+        n = "F";
+        break;
+    case Fs:
+        n = "F#";
+        break;
+    case G:
+        n = "G";
+        break;
+    case Gs:
+        n = "G#";
+        break;
+    case A:
+        n = "A";
+        break;
+    case As:
+        n = "A#";
+        break;
+    case B:
+        n = "B";
+        break;
+    }
+    QString ret(n);
+    if (_name != None) ret += QString("%1").arg(_oct);
+    return ret;
+}
+
+double Note::toHz(double A4) const
+{
+    if (_name == None) return 0.0;
+    int name(static_cast<int>(_name) - 10);
+    int oct(_oct - 4);
+    double sound(oct*12 + name);
+    return std::pow(2.0, sound/12.0)*A4;
+}
+// 2^(x/12) = s
+// x/12 = log2(s)
+// x = 12log2(s)
+
+Note Note::fromHz(double f, double A4)
+{
+    if (f <= 0.0) return Note();
+    double s(f/A4);
+    double pitch(12.0*std::log2(s));
+    int pitch_(std::round(pitch) + 12*4 + 10);
+    int oct(pitch_ >= 0 ? (pitch_%12 == 0 ? pitch_/12 - 1 : pitch_/12) : 0);
+    int name(pitch_ >= 0 ? (pitch_%12 == 0 ? 12 : pitch_%12) : 0);
+    return Note(static_cast<eNoteName>(name), oct);
+}

@@ -27,6 +27,8 @@ TRANSLATIONS += \
 CONFIG += lrelease
 CONFIG += embed_translations
 
+LIBS += -lm
+
 # Default rules for deployment.
 qnx: target.path = /tmp/$${TARGET}/bin
 else: unix:!android: target.path = /opt/$${TARGET}/bin

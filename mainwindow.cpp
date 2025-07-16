@@ -8,8 +8,8 @@ MainWindow::MainWindow(QWidget *parent)
 
 {
     ui->setupUi(this);
-    pe->setParent(ui->centralwidget);
-    setCentralWidget(pe);
+    pe->setParent(this);
+    ui->verticalLayout->addWidget(pe);
     pe->show();
 }
 
