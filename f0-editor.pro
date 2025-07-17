@@ -9,14 +9,18 @@ CONFIG += c++17
 #DEFINES += QT_DISABLE_DEPRECATED_BEFORE=0x060000    # disables all the APIs deprecated before Qt 6.0.0
 
 SOURCES += \
+    f0.cpp \
     main.cpp \
     mainwindow.cpp \
     midi.cpp \
+    piano.cpp \
     pitcheditor.cpp
 
 HEADERS += \
+    f0.h \
     mainwindow.h \
     midi.h \
+    piano.h \
     pitcheditor.h
 
 FORMS += \

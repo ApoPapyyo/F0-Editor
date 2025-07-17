@@ -39,7 +39,9 @@ public:
     static Note fromHz(const double f, const double A4 = 440.0);
     friend Note operator+(const Note &a, int b);
     friend Note operator-(const Note &a, int b);
-
+    friend double operator-(const Note &a, const Note &b);//音程を半音の数で
 };
+
+
 
 #endif // Note_H

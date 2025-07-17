@@ -2,7 +2,9 @@
 #define MAINWINDOW_H
 
 #include <QMainWindow>
+#include <QSplitter>
 #include "pitcheditor.h"
+#include "piano.h"
 
 QT_BEGIN_NAMESPACE
 namespace Ui {
@@ -20,7 +22,10 @@ public:
 
 private:
     Ui::MainWindow *ui;
+    QSplitter *sp;
     PitchEditor *pe;
+    Piano *piano;
+
 private slots:
     void updateStatusBar(const QString &text);
 
