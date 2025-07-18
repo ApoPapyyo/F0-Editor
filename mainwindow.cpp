@@ -1,6 +1,7 @@
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
 #include <QDebug>
+#include <QScrollBar>
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -24,6 +25,7 @@ MainWindow::MainWindow(QWidget *parent)
     lay->addWidget(sp, row, column, srow, scolumn);
     connect(pe, &PitchEditor::mouseMoved, this, &MainWindow::updateStatusBar);
     connect(pe, &PitchEditor::scrolled, piano, &Piano::scrolled);
+    connect(ui->verticalScrollBar, &QScrollBar::valueChanged, this, &MainWindow::updateScrollBar);
 }
 
 MainWindow::~MainWindow()
@@ -34,4 +36,9 @@ MainWindow::~MainWindow()
 void MainWindow::updateStatusBar(const QString &text)
 {
     ui->statusbar->showMessage(text);
+}
+
+void MainWindow::updateScrollBar(int value)
+{
+
 }

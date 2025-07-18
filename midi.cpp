@@ -22,18 +22,7 @@ Note::Note(eNoteName n, double c, int o)
     , _cent(c)
     , _oct(o)
 {
-    if(-1.0 >= _cent || _cent >= 1.0) {
-        int t(static_cast<int>(_cent));
-        _cent -= t;
-        *this = *this + t;
-    }
-    if (-0.5 >= _cent) {
-        _cent = 1.0 + _cent;
-        *this = *this - 1;
-    } else if (_cent > 0.5) {
-        _cent = _cent - 1.0;
-        *this = *this + 1;
-    }
+    *this = normalize(*this);
 }
 
 Note::Note(QString str)
@@ -43,7 +32,7 @@ Note::Note(QString str)
 {
     *this = fromStr(str);
 }
-
+//周波数から
 Note::Note(const double f, const double A4)
     : _name(None)
     , _cent(0.0)
@@ -187,7 +176,7 @@ Note Note::fromHz(const double f, const double A4)
     return Note(static_cast<eNoteName>(name), pitch - pitch_, oct);
 }
 
-Note operator+(const Note &a, int b)
+Note operator+(const Note &a, const int b)
 {
     if(b == 0 || a._name == Note::None) return a;
     else if(b > 0) {
@@ -200,9 +189,10 @@ Note operator+(const Note &a, int b)
     } else if (b < 0) {
         return a - (-b);
     }
+    return a;
 }
 
-Note operator-(const Note &a, int b)
+Note operator-(const Note &a, const int b)
 {
     if(b == 0 || a._name == Note::None) return a;
     else if(b > 0) {
@@ -215,6 +205,7 @@ Note operator-(const Note &a, int b)
     } else if (b < 0) {
         return a + (-b);
     }
+    return a;
 }
 
 Note::eNoteName Note::getName() const
@@ -280,4 +271,68 @@ double operator-(const Note &_a, const Note &_b)
     }
 
     return (iv_cent + iv_name + iv_oct*12)*static_cast<double>(sign);
+}
+
+Note Note::normalize(const Note &a)
+{
+    Note ret(a);
+    if(-1.0 >= ret._cent || ret._cent >= 1.0) {
+        int t(static_cast<int>(ret._cent));
+        ret._cent -= t;
+        ret = ret + t;
+    }
+    if (-0.5 >= ret._cent) {
+        ret._cent = 1.0 + ret._cent;
+        ret = ret - 1;
+    } else if (ret._cent > 0.5) {
+        ret._cent = ret._cent - 1.0;
+        ret = ret + 1;
+    }
+    return ret;
+}
+
+Note &Note::operator+=(const int a)
+{
+    *this = *this + a;
+    return *this;
+}
+
+Note &Note::operator-=(const int a)
+{
+    *this = *this - a;
+    return *this;
+}
+
+Note operator+(const Note &a, const double b)
+{
+    int b_(b);
+    Note ret(a);
+    ret += b_;
+    double b__(b-b_);
+    ret._cent += b__;
+    ret = Note::normalize(ret);
+    return ret;
+}
+
+Note operator-(const Note &a, const double b)
+{
+    int b_(b);
+    Note ret(a);
+    ret -= b_;
+    double b__(b-b_);
+    ret._cent -= b__;
+    ret = Note::normalize(ret);
+    return ret;
+}
+
+bool operator==(const Note &a, const Note &b)
+{
+    if (a._name == b._name && a._oct == b._oct) return true;
+    return false;
+}
+
+bool operator!=(const Note &a, const Note &b)
+{
+    if (a._name == b._name && a._oct == b._oct) return false;
+    return true;
 }

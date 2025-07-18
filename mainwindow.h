@@ -28,6 +28,9 @@ private:
 
 private slots:
     void updateStatusBar(const QString &text);
+    void updateScrollBar(int value);
+signals:
+    void scrollbarsChanged(int x, int y);
 
 };
 #endif // MAINWINDOW_H

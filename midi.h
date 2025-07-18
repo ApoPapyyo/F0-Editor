@@ -23,6 +23,7 @@ private:
     eNoteName _name;
     double _cent;
     int _oct;
+    static Note normalize(const Note &a);
 public:
     Note();
     Note(const Note &);
@@ -37,8 +38,14 @@ public:
     double toHz(const double A4 = 440.0) const;
     static Note fromStr(QString);
     static Note fromHz(const double f, const double A4 = 440.0);
-    friend Note operator+(const Note &a, int b);
-    friend Note operator-(const Note &a, int b);
+    friend Note operator+(const Note &a, const int b);
+    friend Note operator-(const Note &a, const int b);
+    friend Note operator+(const Note &a, const double b);
+    friend Note operator-(const Note &a, const double b);
+    friend bool operator==(const Note &a, const Note &b);
+    friend bool operator!=(const Note &a, const Note &b);
+    Note &operator+=(const int a);
+    Note &operator-=(const int a);
     friend double operator-(const Note &a, const Note &b);//音程を半音の数で
 };
 
