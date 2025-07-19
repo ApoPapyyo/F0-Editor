@@ -153,7 +153,7 @@ int PitchEditor::get_y_zoom() const
 
 void PitchEditor::set_x_zoom(int x)
 {
-    if(5 <= x && x <= 100) {
+    if(1 <= x && x <= 100) {
         emit scrolleds(x_scroll_offset, y_scroll_offset);
         note_size = x;
         update();
@@ -165,7 +165,7 @@ void PitchEditor::set_y_zoom(int y)
     if(5 <= y && y <= 100) {
         piano_keyboard_width = y;
         emit scrolleds(x_scroll_offset, y_scroll_offset);
-        for (y_scroll_offset = 0; centre < mouseSound(QPoint(0, height()/2)); y_scroll_offset++);
+        for (y_scroll_offset = 0; centre < mouseSound(QPoint(0, height()/2)); y_scroll_offset++);//ズームの中心を固定するため
         update();
     }
 }
@@ -187,5 +187,6 @@ void PitchEditor::open_f0()
 void PitchEditor::close_f0()
 {
     f0.closeF0();
+    x_scroll_offset = 0;
     update();
 }
