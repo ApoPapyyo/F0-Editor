@@ -40,7 +40,7 @@ int F0::openF0(QFileInfo &path)
             return 1;
         }
         QTextStream in(&file);
-        in.setEncoding(QStringConverter::Utf8);  // 必要に応じてエンコーディング指定
+        //in.setEncoding(QStringConverter::Utf8);  // 必要に応じてエンコーディング指定
         QMap<double, double> map;
         while (!in.atEnd()) {
             QString line = in.readLine();         // 1行読み取り
