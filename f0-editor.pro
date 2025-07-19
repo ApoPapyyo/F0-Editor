@@ -13,6 +13,7 @@ SOURCES += \
     main.cpp \
     mainwindow.cpp \
     midi.cpp \
+    midieditor.cpp \
     piano.cpp \
     pitcheditor.cpp
 
@@ -20,6 +21,7 @@ HEADERS += \
     f0.h \
     mainwindow.h \
     midi.h \
+    midieditor.h \
     piano.h \
     pitcheditor.h
 

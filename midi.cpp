@@ -336,3 +336,59 @@ bool operator!=(const Note &a, const Note &b)
     if (a._name == b._name && a._oct == b._oct) return false;
     return true;
 }
+
+bool operator<(const Note &a, const Note &b)
+{
+    if(a._oct > b._oct) return false;
+    if(a._oct < b._oct) return true;
+
+    if(static_cast<int>(a._name) > static_cast<int>(b._name)) return false;
+    if(static_cast<int>(a._name) < static_cast<int>(b._name)) return true;
+
+    if(a._cent > b._cent) return false;
+    if(a._cent < b._cent) return true;
+
+    return false;
+}
+
+bool operator>(const Note &a, const Note &b)
+{
+    if(a._oct < b._oct) return false;
+    if(a._oct > b._oct) return true;
+
+    if(static_cast<int>(a._name) < static_cast<int>(b._name)) return false;
+    if(static_cast<int>(a._name) > static_cast<int>(b._name)) return true;
+
+    if(a._cent < b._cent) return false;
+    if(a._cent > b._cent) return true;
+
+    return false;
+}
+
+bool operator<=(const Note &a, const Note &b)
+{
+    if(a._oct > b._oct) return false;
+    if(a._oct < b._oct) return true;
+
+    if(static_cast<int>(a._name) > static_cast<int>(b._name)) return false;
+    if(static_cast<int>(a._name) < static_cast<int>(b._name)) return true;
+
+    if(a._cent > b._cent) return false;
+    if(a._cent < b._cent) return true;
+
+    return true;
+}
+
+bool operator>=(const Note &a, const Note &b)
+{
+    if(a._oct < b._oct) return false;
+    if(a._oct > b._oct) return true;
+
+    if(static_cast<int>(a._name) < static_cast<int>(b._name)) return false;
+    if(static_cast<int>(a._name) > static_cast<int>(b._name)) return true;
+
+    if(a._cent < b._cent) return false;
+    if(a._cent > b._cent) return true;
+
+    return true;
+}

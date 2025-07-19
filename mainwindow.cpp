@@ -6,26 +6,19 @@
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
     , ui(new Ui::MainWindow)
-    , sp(new QSplitter(Qt::Horizontal, this))
-    , pe(new PitchEditor(this))
-    , piano(new Piano(pe, this))
+    , editor(new MidiEditor(this))
 {
     ui->setupUi(this);
 
-    sp->addWidget(piano);
-    sp->addWidget(pe);
-
-    sp->setSizes(QList({static_cast<int>(width()*0.25), static_cast<int>(width()*0.75)}));
-
-    QGridLayout *lay(ui->gridLayout_2);
-    int row, column, srow, scolumn;
-    lay->getItemPosition(lay->indexOf(ui->dummy), &row, &column, &srow, &scolumn);
-    QLayoutItem *item(lay->takeAt(lay->indexOf(ui->dummy)));
+    int id(ui->gridLayout_2->indexOf(ui->dummy));
+    int r, c, rs, cs;
+    ui->gridLayout_2->getItemPosition(id, &r, &c, &rs, &cs);
+    QLayoutItem *item(ui->gridLayout_2->takeAt(id));
     delete item->widget();
-    lay->addWidget(sp, row, column, srow, scolumn);
-    connect(pe, &PitchEditor::mouseMoved, this, &MainWindow::updateStatusBar);
-    connect(pe, &PitchEditor::scrolled, piano, &Piano::scrolled);
-    connect(ui->verticalScrollBar, &QScrollBar::valueChanged, this, &MainWindow::updateScrollBar);
+    ui->gridLayout_2->addWidget(editor, r, c, rs, cs);
+    connect(editor->get_pe(), &PitchEditor::mouseMoved, this, &MainWindow::updateStatusBar);
+    connect(ui->action_open_f0, &QAction::triggered, editor->get_pe(), &PitchEditor::open_f0);
+    connect(ui->actio_close_file, &QAction::triggered, editor->get_pe(), &PitchEditor::close_f0);
 }
 
 MainWindow::~MainWindow()
@@ -38,7 +31,3 @@ void MainWindow::updateStatusBar(const QString &text)
     ui->statusbar->showMessage(text);
 }
 
-void MainWindow::updateScrollBar(int value)
-{
-
-}

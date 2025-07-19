@@ -44,6 +44,10 @@ public:
     friend Note operator-(const Note &a, const double b);
     friend bool operator==(const Note &a, const Note &b);
     friend bool operator!=(const Note &a, const Note &b);
+    friend bool operator<(const Note &a, const Note &b);//aがbよりも低い音
+    friend bool operator>(const Note &a, const Note &b);//aがbよりも高い音
+    friend bool operator<=(const Note &a, const Note &b);
+    friend bool operator>=(const Note &a, const Note &b);
     Note &operator+=(const int a);
     Note &operator-=(const int a);
     friend double operator-(const Note &a, const Note &b);//音程を半音の数で

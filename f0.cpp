@@ -48,16 +48,16 @@ int F0::openF0(QFileInfo &path)
 
             map[fields[0].toDouble()] = fields[1].toDouble();
         }
-        for (double i = 0; i <= map.lastKey(); i+=0.01) {
-            if (map.contains(i)) {
-                _data.append(Note(map[i]));
+        for (int i = 0; i <= map.lastKey()*100; i+=1) {
+            if (map.contains(i/100.0)) {
+                _data.append(Note(map[i/100.0]));
             } else {
                 _data.append(Note());
             }
         }
 
         file.close();
-    } else if (path.suffix().toLower() == "lf0") {
+    } else if (path.suffix().toLower() == "f0") {
         QFile file(path.filePath());
         if (!file.open(QIODevice::ReadOnly | QIODevice::Unbuffered)) {
             QMessageBox::critical(nullptr, QObject::tr("エラー"), QObject::tr("%1が開けませんでした。").arg(path.filePath()));
@@ -70,12 +70,13 @@ int F0::openF0(QFileInfo &path)
             }
 
             bool ok;
-            double v(chunk.toDouble(&ok));
-            if (!ok) {
-                QMessageBox::critical(nullptr, QObject::tr("エラー"), QObject::tr("%1を読み込めませんでした。").arg(path.filePath()));
-                file.close();
-                return 1;
-            }
+            float v(0.0);
+            memcpy(&v, chunk.data(), 4);
+            //if (ok) {
+            //    QMessageBox::critical(nullptr, QObject::tr("エラー"), QObject::tr("%1を読み込めませんでした。").arg(path.filePath()));
+            //    file.close();
+            //    return 1;
+            //}
             _data.append(Note(v));
         }
 
@@ -91,4 +92,20 @@ int F0::openF0(QFileInfo &path)
 int F0::getDataSize() const
 {
     return _data.count();
+}
+
+Note F0::getData(int i) const
+{
+    if(0 < i && i < _data.count()) return _data[i];
+    return Note();
+}
+
+void F0::closeF0()
+{
+    if(_data.empty()) {
+        QMessageBox::critical(nullptr, QObject::tr("エラー"), QObject::tr("まだデータが読み込まれていません"));
+        return;
+    } else {
+        _data.clear();
+    }
 }

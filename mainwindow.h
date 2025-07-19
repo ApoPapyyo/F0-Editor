@@ -3,9 +3,8 @@
 
 #include <QMainWindow>
 #include <QSplitter>
+#include "midieditor.h"
 #include "pitcheditor.h"
-#include "piano.h"
-
 QT_BEGIN_NAMESPACE
 namespace Ui {
 class MainWindow;
@@ -22,15 +21,10 @@ public:
 
 private:
     Ui::MainWindow *ui;
-    QSplitter *sp;
-    PitchEditor *pe;
-    Piano *piano;
+    MidiEditor *editor;
 
 private slots:
     void updateStatusBar(const QString &text);
-    void updateScrollBar(int value);
-signals:
-    void scrollbarsChanged(int x, int y);
 
 };
 #endif // MAINWINDOW_H

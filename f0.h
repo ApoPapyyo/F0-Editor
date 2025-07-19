@@ -15,7 +15,9 @@ public:
     F0(QFileInfo &path);
     ~F0();
     int openF0(QFileInfo &path);
+    void closeF0();
     int getDataSize() const;
+    Note getData(int i) const;
 private:
     QFileInfo _path;
     QList<Note> _data;

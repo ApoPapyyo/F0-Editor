@@ -1,12 +1,14 @@
 #include "pitcheditor.h"
 #include <cmath>
 #include <QCursor>
+#include <QFileDialog>
+#include <QFileInfo>
 
 const int PitchEditor::oct_max = 8;
 PitchEditor::PitchEditor(QWidget *parent)
     : QWidget{parent}
     , piano_keyboard_width(20)
-    , note_size(50)
+    , note_size(1)
     , now(Note(Note::C, 0.0, 4))
     , centre(Note(Note::C, 0.0, 4))
     , x_scroll_offset(0)
@@ -28,8 +30,20 @@ void PitchEditor::paintEvent(QPaintEvent *ev)
         y_scroll_offset -= height()/2;
         init = true;
     }
+    drawF0(painter);
 }
 
+void PitchEditor::drawF0(QPainter &painter)
+{
+    int i, j(x_scroll_offset/note_size);
+    painter.setBrush(QColor(255, 0, 0));
+    for(i = 0; i < width() && j < f0.getDataSize(); i+=note_size) {
+        Note d(f0.getData(j));
+        if(d != Note()) painter.drawRect(QRect(i, soundPosition(d), note_size, 1));
+        j++;
+    }
+}
+/*
 void PitchEditor::wheelEvent(QWheelEvent *ev)
 {
     Qt::KeyboardModifiers mods = ev->modifiers();
@@ -62,6 +76,8 @@ void PitchEditor::wheelEvent(QWheelEvent *ev)
     update();
     emit scrolled(scrx, scry);
 }
+*/
+
 
 Note PitchEditor::mouseSound(QPoint p) const
 {
@@ -87,13 +103,89 @@ int PitchEditor::soundPosition(Note n)
     return iv;
 }
 
+int PitchEditor::get_x_scroll_max() const
+{
+    return f0.getDataSize()*note_size - width();
+}
+
+int PitchEditor::get_y_scroll_max() const
+{
+    return oct_max*12*piano_keyboard_width - height();
+}
+
+int PitchEditor::get_x_scroll_offset() const
+{
+    return x_scroll_offset;
+}
+
+int PitchEditor::get_y_scroll_offset() const
+{
+    return y_scroll_offset;
+}
+
 void PitchEditor::set_x_scroll_offset(int x)
 {
-    if(0 <= x || x+width() <= f0.getDataSize()) x_scroll_offset = x;
+    if(0 <= x && x+width() < f0.getDataSize()*note_size) {
+        x_scroll_offset = x;
+        update();
+    }
 }
 
 void PitchEditor::set_y_scroll_offset(int y)
 {
-    if(0 <= y || (y+height())/piano_keyboard_width/12 <= oct_max) y_scroll_offset = y;
+    if(0 <= y && y+height() < oct_max*12*piano_keyboard_width) {
+        y_scroll_offset = y;
+        emit scrolleds(x_scroll_offset, y_scroll_offset);
+        centre = mouseSound(QPoint(0, height()/2));
+        update();
+    }
 }
 
+int PitchEditor::get_x_zoom() const
+{
+    return note_size;
+}
+
+int PitchEditor::get_y_zoom() const
+{
+    return piano_keyboard_width;
+}
+
+void PitchEditor::set_x_zoom(int x)
+{
+    if(5 <= x && x <= 100) {
+        emit scrolleds(x_scroll_offset, y_scroll_offset);
+        note_size = x;
+        update();
+    }
+}
+
+void PitchEditor::set_y_zoom(int y)
+{
+    if(5 <= y && y <= 100) {
+        piano_keyboard_width = y;
+        emit scrolleds(x_scroll_offset, y_scroll_offset);
+        for (y_scroll_offset = 0; centre < mouseSound(QPoint(0, height()/2)); y_scroll_offset++);
+        update();
+    }
+}
+
+void PitchEditor::open_f0()
+{
+    QFileInfo fn(QFileDialog::getOpenFileName(
+        this,
+        "ファイルを開く",
+        "",
+        "F0ファイル (*.csv *.f0);;"
+        ));
+    if (f0.openF0(fn)) {
+        update();
+    }
+
+}
+
+void PitchEditor::close_f0()
+{
+    f0.closeF0();
+    update();
+}
