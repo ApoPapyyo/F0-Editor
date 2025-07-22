@@ -91,13 +91,32 @@ int F0::openF0(QFileInfo &path)
 
 int F0::getDataSize() const
 {
-    return _data.count();
+    return _data.size();
 }
 
 Note F0::getData(int i) const
 {
-    if(0 < i && i < _data.count()) return _data[i];
+    if(0 < i && i < _data.size()) return _data.at(i);
     return Note();
+}
+
+QList<Note> F0::getData(int first, int size) const
+{
+    QList<Note> ret(size);
+    for(int i(0); i+first < _data.size() && i < size; i++) ret.append(_data.at(i+first));
+    return ret;
+}
+
+void F0::setData(int i, Note d)
+{
+    if(0 < i && i < _data.size()) _data[i] = d;
+}
+
+void F0::setData(int first, const QList<Note> &ds)
+{
+    if(0 < first && first < _data.size() && first + ds.size() < _data.size()) {
+        for(int i(0); i < ds.size(); i++) _data[i+first] = ds.at(i);
+    }
 }
 
 void F0::closeF0()

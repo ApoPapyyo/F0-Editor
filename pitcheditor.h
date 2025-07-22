@@ -54,6 +54,7 @@ private:
         void setRef(int n);
         void setVar(int n);
         bool seted() const;
+        QList<int> getIndex() const;
     };
 
     Note mouseSound(QPoint p) const;

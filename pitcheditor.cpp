@@ -46,30 +46,33 @@ void PitchEditor::paintEvent(QPaintEvent *ev)
 
 void PitchEditor::drawF0(QPainter &painter)
 {
-    int j(x_scroll_offset/note_size);
+    int i(0), j(x_scroll_offset/note_size);
     painter.setBrush(QColor(255, 255, 255, 128));
     painter.drawRect(QRect(0, 0, std::min(f0.getDataSize()*note_size - x_scroll_offset, static_cast<double>(width())), height()));
-    for(double i = 0; i < width() && j < f0.getDataSize(); j++) {
+    for(; i < width()+x_scroll_offset && j < f0.getDataSize(); j++) {
+        i = j*note_size - x_scroll_offset;
         Note d(f0.getData(j)), d2(j+1 < f0.getDataSize() ? f0.getData(j+1) : Note());
         painter.setPen(QColor(200, 80, 0));
         painter.setBrush(QColor(200, 80, 0));
         if(d != Note() && d2 != Note()) {
-            if(note_size > 4) painter.drawEllipse(QRect(i - 2, soundPosition(d) - 2, 4, 4));
+            if(note_size > 4) painter.drawEllipse(QRect(i-2, soundPosition(d)-2, 4, 4));
             painter.drawLine(QLine(i, soundPosition(d), i+note_size, soundPosition(d2)));
         } else if(d != Note()) {
             painter.drawPoint(QPoint(i, soundPosition(d)));
-            if(note_size > 4) painter.drawEllipse(QRect(i - 2, soundPosition(d) - 2, 4, 4));
+            if(note_size > 4) painter.drawEllipse(QRect(i-2, soundPosition(d)-2, 4, 4));
         }
         painter.setPen(QColor(0, 0, 0));
-        if(j%100 == 0 && note_size > 1) painter.drawLine(QLine(i, 0, i, height()));
-        i += note_size;
+        if(j%100 == 0 && note_size > 0.3 || j%1000 == 0 && note_size > 0.1 || j%2000 == 0 && note_size > 0.0333) {
+            painter.drawLine(QLine(i, 0, i, height()));
+            painter.drawText(QPoint(i+1, 20), tr("%1:%2").arg(j/100/60, 2, 10, QChar('0')).arg(j/100%60, 2, 10, QChar('0')));
+        }
     }
 }
 
 void PitchEditor::drawSelect(QPainter &painter)
 {
     painter.setBrush(QColor(0, 255, 255, 128));
-    if(selected.seted()) painter.drawRect(QRect(selected.getStart()*note_size - x_scroll_offset + 2, 0, selected.getEnd()*note_size - selected.getStart()*note_size, height()));
+    if(selected.seted()) painter.drawRect(QRect(selected.getStart()*note_size - x_scroll_offset, 0, selected.getEnd()*note_size - selected.getStart()*note_size, height()));
 }
 /*
 void PitchEditor::wheelEvent(QWheelEvent *ev)
@@ -263,6 +266,7 @@ void PitchEditor::close_f0()
 {
     f0.closeF0();
     x_scroll_offset = 0;
+    selected.reset();
     update();
 }
 
@@ -318,4 +322,11 @@ int PitchEditor::area_t::getVar() const
 bool PitchEditor::area_t::seted() const
 {
     return ref != -1 && var != -1;
+}
+
+QList<int> PitchEditor::area_t::getIndex() const
+{
+    if(!seted()) return QList<int>();
+    QList<int> index;
+    for(int i = getStart(); i < getEnd(); i++) index.append(i);
 }
