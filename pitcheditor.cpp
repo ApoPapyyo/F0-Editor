@@ -8,13 +8,17 @@ const int PitchEditor::oct_max = 8;
 PitchEditor::PitchEditor(QWidget *parent)
     : QWidget{parent}
     , piano_keyboard_width(20)
-    , note_size(1)
+    , note_size(1.0)
     , now(Note(Note::C, 0.0, 4))
-    , centre(Note(Note::C, 0.0, 4))
+    , centrex(0)
+    , centrey(Note(Note::C, 0.0, 4))
     , x_scroll_offset(0)
-    , y_scroll_offset((Note(Note::B, 0.0, 8)-centre)*piano_keyboard_width)
+    , y_scroll_offset((Note(Note::B, 0.0, 8)-centrey)*piano_keyboard_width)
     , init(false)
     , f0()
+    , mode(eMouseMode::Select)
+    , selected()
+    , lclick(false)
 {
     setMouseTracking(true);
     setFocusPolicy(Qt::StrongFocus);
@@ -26,22 +30,46 @@ void PitchEditor::paintEvent(QPaintEvent *ev)
     QPainter painter(this);
     painter.setBrush(QColor(200, 200, 200));
     painter.drawRect(QRect(0, 0, width(), height()));
+    painter.setPen(QColor(150, 150, 150));
+    for (int i = y_scroll_offset; i < oct_max*12*piano_keyboard_width; i++) {
+        if(i%piano_keyboard_width == 0) {
+            painter.drawLine(QLine(0, i-y_scroll_offset, width(), i-y_scroll_offset));
+        }
+    }
     if(!init) {
         y_scroll_offset -= height()/2;
         init = true;
     }
     drawF0(painter);
+    drawSelect(painter);
 }
 
 void PitchEditor::drawF0(QPainter &painter)
 {
-    int i, j(x_scroll_offset/note_size);
-    painter.setBrush(QColor(255, 0, 0));
-    for(i = 0; i < width() && j < f0.getDataSize(); i+=note_size) {
-        Note d(f0.getData(j));
-        if(d != Note()) painter.drawRect(QRect(i, soundPosition(d), note_size, 1));
-        j++;
+    int j(x_scroll_offset/note_size);
+    painter.setBrush(QColor(255, 255, 255, 128));
+    painter.drawRect(QRect(0, 0, std::min(f0.getDataSize()*note_size - x_scroll_offset, static_cast<double>(width())), height()));
+    for(double i = 0; i < width() && j < f0.getDataSize(); j++) {
+        Note d(f0.getData(j)), d2(j+1 < f0.getDataSize() ? f0.getData(j+1) : Note());
+        painter.setPen(QColor(200, 80, 0));
+        painter.setBrush(QColor(200, 80, 0));
+        if(d != Note() && d2 != Note()) {
+            if(note_size > 4) painter.drawEllipse(QRect(i - 2, soundPosition(d) - 2, 4, 4));
+            painter.drawLine(QLine(i, soundPosition(d), i+note_size, soundPosition(d2)));
+        } else if(d != Note()) {
+            painter.drawPoint(QPoint(i, soundPosition(d)));
+            if(note_size > 4) painter.drawEllipse(QRect(i - 2, soundPosition(d) - 2, 4, 4));
+        }
+        painter.setPen(QColor(0, 0, 0));
+        if(j%100 == 0 && note_size > 1) painter.drawLine(QLine(i, 0, i, height()));
+        i += note_size;
     }
+}
+
+void PitchEditor::drawSelect(QPainter &painter)
+{
+    painter.setBrush(QColor(0, 255, 255, 128));
+    if(selected.seted()) painter.drawRect(QRect(selected.getStart()*note_size - x_scroll_offset + 2, 0, selected.getEnd()*note_size - selected.getStart()*note_size, height()));
 }
 /*
 void PitchEditor::wheelEvent(QWheelEvent *ev)
@@ -60,7 +88,7 @@ void PitchEditor::wheelEvent(QWheelEvent *ev)
         piano_keyboard_width -= scry/10;
         if (piano_keyboard_width < 10 || piano_keyboard_width > 300) piano_keyboard_width += scry/10;
         else {
-            for (y_scroll_offset = 0; centre != mouseSound(QPoint(0, height()/2)); y_scroll_offset++);
+            for (y_scroll_offset = 0; centrey != mouseSound(QPoint(0, height()/2)); y_scroll_offset++);
         }
     } else {
         x_scroll_offset -= scrx;
@@ -70,7 +98,7 @@ void PitchEditor::wheelEvent(QWheelEvent *ev)
         y_scroll_offset -= scry;
         if(y_scroll_offset < 0) y_scroll_offset = 0;
         else if ((y_scroll_offset+height())/piano_keyboard_width/12 > oct_max) y_scroll_offset += scry;
-        centre = mouseSound(QPoint(0, height()/2));
+        centrey = mouseSound(QPoint(0, height()/2));
     }
     ev->accept();
     update();
@@ -93,6 +121,49 @@ void PitchEditor::mouseMoveEvent(QMouseEvent *ev)
     pos = this->mapFromGlobal(pos);
     now = mouseSound(pos);
     emit mouseMoved(tr("%1Hzは%2(%3セント). A4=440Hzとした%2は%4Hz. C0との音程は%5.").arg(now.toHz()).arg(now.toStr()).arg(now.getCent()*100).arg(Note(now.getName(), 0.0, now.getOct()).toHz()).arg(now-Note(Note::C, 0.0, 0)));
+    if(lclick) selected.setVar((x_scroll_offset + pos.x())/note_size);
+    update();
+}
+
+void PitchEditor::mousePressEvent(QMouseEvent *ev)
+{
+    QPoint pos(QCursor::pos());
+    pos = this->mapFromGlobal(pos);
+    if (ev->button() == Qt::LeftButton) {
+        lclick = true;
+        switch(mode) {
+        case eMouseMode::Select:
+            if(!selected.seted()) selected.setRef((x_scroll_offset + pos.x()) / note_size);
+            else selected.reset();
+            break;
+        default:
+        }
+    }
+    update();
+}
+
+void PitchEditor::mouseReleaseEvent(QMouseEvent *ev)
+{
+    QPoint pos(QCursor::pos());
+    pos = this->mapFromGlobal(pos);
+    if (ev->button() == Qt::LeftButton) {
+        lclick = false;
+        switch(mode) {
+        case eMouseMode::Select:
+            if(!selected.seted()) selected.setVar((x_scroll_offset + pos.x()) / note_size);
+            break;
+        default:
+        }
+        centrex = selected.seted() ? (selected.getStart()+selected.getEnd())/2 : (x_scroll_offset + width()/2)/note_size;
+    }
+    update();
+}
+
+void PitchEditor::keyPressEvent(QKeyEvent *ev)
+{
+    if(ev->key() == Qt::Key_Escape) {
+        clicked_other();
+    }
 }
 
 int PitchEditor::soundPosition(Note n)
@@ -127,6 +198,7 @@ void PitchEditor::set_x_scroll_offset(int x)
 {
     if(0 <= x && x+width() < f0.getDataSize()*note_size) {
         x_scroll_offset = x;
+        centrex = selected.seted() ? (selected.getStart()+selected.getEnd())/2 : (x_scroll_offset + width()/2)/note_size;
         update();
     }
 }
@@ -136,14 +208,14 @@ void PitchEditor::set_y_scroll_offset(int y)
     if(0 <= y && y+height() < oct_max*12*piano_keyboard_width) {
         y_scroll_offset = y;
         emit scrolleds(x_scroll_offset, y_scroll_offset);
-        centre = mouseSound(QPoint(0, height()/2));
+        centrey = mouseSound(QPoint(0, height()/2));
         update();
     }
 }
 
-int PitchEditor::get_x_zoom() const
+double PitchEditor::get_x_zoom() const
 {
-    return note_size;
+    return note_size * 10.0;
 }
 
 int PitchEditor::get_y_zoom() const
@@ -151,11 +223,13 @@ int PitchEditor::get_y_zoom() const
     return piano_keyboard_width;
 }
 
-void PitchEditor::set_x_zoom(int x)
+void PitchEditor::set_x_zoom(double x)
 {
-    if(1 <= x && x <= 100) {
+    x /= 10;
+    if(0.01 <= x && x <= 100.0) {
         emit scrolleds(x_scroll_offset, y_scroll_offset);
         note_size = x;
+        for (x_scroll_offset = 0; centrex > (x_scroll_offset + width()/2)/note_size; x_scroll_offset++);
         update();
     }
 }
@@ -165,7 +239,7 @@ void PitchEditor::set_y_zoom(int y)
     if(5 <= y && y <= 100) {
         piano_keyboard_width = y;
         emit scrolleds(x_scroll_offset, y_scroll_offset);
-        for (y_scroll_offset = 0; centre < mouseSound(QPoint(0, height()/2)); y_scroll_offset++);//ズームの中心を固定するため
+        for (y_scroll_offset = 0; centrey < mouseSound(QPoint(0, height()/2)); y_scroll_offset++);//ズームの中心を固定するため
         update();
     }
 }
@@ -179,6 +253,7 @@ void PitchEditor::open_f0()
         "F0ファイル (*.csv *.f0);;"
         ));
     if (f0.openF0(fn)) {
+        for(note_size = 0.0; note_size * f0.getDataSize() < width(); note_size+=0.01);
         update();
     }
 
@@ -189,4 +264,58 @@ void PitchEditor::close_f0()
     f0.closeF0();
     x_scroll_offset = 0;
     update();
+}
+
+void PitchEditor::clicked_other()
+{
+    selected.reset();
+    update();
+}
+
+PitchEditor::area_t::area_t()
+    : ref(-1)
+    , var(-1)
+{
+}
+
+int PitchEditor::area_t::getStart() const
+{
+    return ref < var ? ref : var;
+}
+
+int PitchEditor::area_t::getEnd() const
+{
+    return ref > var ? ref : var;
+}
+
+void PitchEditor::area_t::reset()
+{
+    ref = var = -1;
+}
+
+void PitchEditor::area_t::setRef(int n)
+{
+    if(n < 0) return;
+    ref = n;
+}
+
+void PitchEditor::area_t::setVar(int n)
+{
+    if(n < 0) return;
+    var = n;
+}
+
+int PitchEditor::area_t::getRef() const
+{
+    return ref;
+}
+
+int PitchEditor::area_t::getVar() const
+{
+    return var;
+}
+
+bool PitchEditor::area_t::seted() const
+{
+    return ref != -1 && var != -1;
 }

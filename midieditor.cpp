@@ -1,4 +1,5 @@
 #include "midieditor.h"
+#include <cmath>
 
 const int bar2val = 10;
 
@@ -49,6 +50,8 @@ void MidiEditor::wheelEvent(QWheelEvent *ev)
         scrx = scry;
         scry = tmp;
     }
+    int sx(scrx / std::abs(scrx)), sy(scry / std::abs(scry));
+    double lx(std::log(std::abs(scrx)) * sx), ly(std::log2(std::abs(scry)) * sy);
     if (mods & Qt::ControlModifier) {
         _pe->set_x_zoom(_pe->get_x_zoom() - scrx/10);
         _pe->set_y_zoom(_pe->get_y_zoom() - scry/10);
@@ -57,8 +60,8 @@ void MidiEditor::wheelEvent(QWheelEvent *ev)
         _scrx->setValue(_pe->get_x_scroll_offset()/10);
         _scry->setValue(_pe->get_y_scroll_offset()/10);
     } else {
-        _pe->set_x_scroll_offset(_pe->get_x_scroll_offset() - scrx);
-        _pe->set_y_scroll_offset(_pe->get_y_scroll_offset() - scry);
+        _pe->set_x_scroll_offset(_pe->get_x_scroll_offset() - scrx/10);
+        _pe->set_y_scroll_offset(_pe->get_y_scroll_offset() - scry/10);
         _scrx->setValue(_pe->get_x_scroll_offset()/10);
         _scry->setValue(_pe->get_y_scroll_offset()/10);
     }

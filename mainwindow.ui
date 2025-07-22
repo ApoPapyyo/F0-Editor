@@ -23,26 +23,51 @@
    <layout class="QGridLayout" name="gridLayout_2">
     <item row="0" column="0" colspan="2">
      <layout class="QGridLayout" name="gridLayout">
+      <item row="1" column="0">
+       <layout class="QHBoxLayout" name="horizontalLayout_2">
+        <item>
+         <widget class="QPushButton" name="tmpstop_button">
+          <property name="text">
+           <string>II</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QPushButton" name="stop_button">
+          <property name="text">
+           <string>ロ</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QPushButton" name="play_button">
+          <property name="text">
+           <string>&gt;</string>
+          </property>
+         </widget>
+        </item>
+       </layout>
+      </item>
       <item row="0" column="0">
-       <layout class="QHBoxLayout" name="horizontalLayout">
+       <layout class="QHBoxLayout" name="horizontalLayout_3">
         <item>
-         <widget class="QPushButton" name="pushButton">
+         <widget class="QRadioButton" name="select_tool">
           <property name="text">
-           <string>PushButton</string>
+           <string>選択ツール</string>
           </property>
          </widget>
         </item>
         <item>
-         <widget class="QPushButton" name="pushButton_2">
+         <widget class="QRadioButton" name="erase_tool">
           <property name="text">
-           <string>PushButton</string>
+           <string>消去ツール</string>
           </property>
          </widget>
         </item>
         <item>
-         <widget class="QPushButton" name="pushButton_3">
+         <widget class="QRadioButton" name="write_tool">
           <property name="text">
-           <string>PushButton</string>
+           <string>書き込みツール</string>
           </property>
          </widget>
         </item>
@@ -90,10 +115,16 @@
    <property name="text">
     <string>F0ファイルを開く</string>
    </property>
+   <property name="shortcut">
+    <string>Ctrl+O</string>
+   </property>
   </action>
   <action name="actio_close_file">
    <property name="text">
     <string>ファイルを閉じる</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+W</string>
    </property>
   </action>
  </widget>

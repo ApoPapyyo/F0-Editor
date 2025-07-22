@@ -327,13 +327,13 @@ Note operator-(const Note &a, const double b)
 
 bool operator==(const Note &a, const Note &b)
 {
-    if (a._name == b._name && a._oct == b._oct) return true;
+    if (a._name == b._name && a._oct == b._oct && a._cent == b._cent) return true;
     return false;
 }
 
 bool operator!=(const Note &a, const Note &b)
 {
-    if (a._name == b._name && a._oct == b._oct) return false;
+    if (a._name == b._name && a._oct == b._oct && a._cent == b._cent) return false;
     return true;
 }
 
@@ -391,4 +391,10 @@ bool operator>=(const Note &a, const Note &b)
     if(a._cent > b._cent) return true;
 
     return true;
+}
+
+bool nearEqual(const Note &a, const Note &b)
+{
+    if (a._name == b._name && a._oct == b._oct) return true;
+    return false;
 }

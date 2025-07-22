@@ -42,7 +42,8 @@ public:
     friend Note operator-(const Note &a, const int b);
     friend Note operator+(const Note &a, const double b);
     friend Note operator-(const Note &a, const double b);
-    friend bool operator==(const Note &a, const Note &b);
+    friend bool nearEqual(const Note &a, const Note &b);//微分音は無視
+    friend bool operator==(const Note &a, const Note &b);//微分音含め完璧に同じか
     friend bool operator!=(const Note &a, const Note &b);
     friend bool operator<(const Note &a, const Note &b);//aがbよりも低い音
     friend bool operator>(const Note &a, const Note &b);//aがbよりも高い音
