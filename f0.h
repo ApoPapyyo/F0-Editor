@@ -22,6 +22,7 @@ public:
     QList<Note> getData(int first, int size) const;
     void setData(int i, Note d);
     void setData(int first, const QList<Note> &ds);
+    void setData(const QList<int> index, Note data);
 private:
     QFileInfo _path;
     QList<Note> _data;

@@ -48,6 +48,10 @@ private:
         PitchDel,
         PitchMod
     };
+    enum class eMouseAction {
+        None,
+        PitchDrag,
+    };
 
     class Area {
         int ref, var;
@@ -65,9 +69,23 @@ private:
         QList<int> getIndex() const;
     };
 
-    struct Area2 {
-        int refx, refy;
-        int varx, vary;
+    class Area2 {
+        QPoint *ref;
+        QPoint *var;
+    public:
+        Area2();
+        Area2(const QPoint &ref, const QPoint &var);
+        QPoint getRef() const;
+        QPoint getVar() const;
+        QRect getRect() const;
+        int getWidth() const;
+        int getHeight() const;
+        void reset();
+        void setRef(const QPoint &ref);
+        void setVar(const QPoint &var);
+        bool seted() const;
+        bool isin(const QPoint &n) const;
+        bool isempty() const;
     };
 
     struct ModLog {
@@ -79,6 +97,9 @@ private:
         };
     };
     Note mouseSound(QPoint p) const;
+    Note mouseSound(int y) const;
+    Note pos2sound(QPoint p) const;
+    Note pos2sound(int y) const;
     int soundPosition(Note n);
     void drawF0(QPainter &painter);
     void drawSelect(QPainter &painter);
@@ -92,9 +113,11 @@ private:
     bool init;
     F0 f0;
     eMouseMode mode;
-    Area selected;
-    bool lclick;
+    Area2 rectselect;
+    QList<int> selected;
     QList<ModLog> modlog;
+    eMouseAction mouse;
+    int draggedid;
     static const int oct_max;
 signals:
     void mouseMoved(const QString &info);
