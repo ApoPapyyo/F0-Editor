@@ -197,9 +197,11 @@ Note operator-(const Note &a, const int b)
     if(b == 0 || a._name == Note::None) return a;
     else if(b > 0) {
         int t(static_cast<int>(a._name)), o(a._oct);
-        t -= b;
-        o -= (t-1)/12;
-        t = (t-1)%12 + 1;
+        t -= b%12;
+        while(t <= 0) {
+            t += 12;
+            o--;
+        }
         Note::eNoteName t_(static_cast<Note::eNoteName>(t));
         return Note(t_, a._cent, o);
     } else if (b < 0) {

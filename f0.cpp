@@ -7,11 +7,13 @@
 F0::F0()
     : _path()
     , _data()
+    , _fps(0)
 {}
 
 F0::F0(QFileInfo &path)
     : _path()
     , _data()
+    , _fps(0)
 {
     openF0(path);
 }
@@ -57,6 +59,7 @@ int F0::openF0(QFileInfo &path)
         }
 
         file.close();
+        _fps = 100;
     } else if (path.suffix().toLower() == "f0") {
         QFile file(path.filePath());
         if (!file.open(QIODevice::ReadOnly | QIODevice::Unbuffered)) {
@@ -81,6 +84,7 @@ int F0::openF0(QFileInfo &path)
         }
 
         file.close();
+        _fps = 200;
     } else {
         QMessageBox::critical(nullptr, QObject::tr("エラー"), QObject::tr("%1はサポートされていません。").arg(path.suffix()));
         return 1;
@@ -127,4 +131,9 @@ void F0::closeF0()
     } else {
         _data.clear();
     }
+}
+
+int F0::getFPS() const
+{
+    return _fps;
 }

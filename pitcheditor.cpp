@@ -19,6 +19,7 @@ PitchEditor::PitchEditor(QWidget *parent)
     , mode(eMouseMode::Select)
     , selected()
     , lclick(false)
+    , modlog()
 {
     setMouseTracking(true);
     setFocusPolicy(Qt::StrongFocus);
@@ -62,9 +63,9 @@ void PitchEditor::drawF0(QPainter &painter)
             if(note_size > 4) painter.drawEllipse(QRect(i-2, soundPosition(d)-2, 4, 4));
         }
         painter.setPen(QColor(0, 0, 0));
-        if(j%100 == 0 && note_size > 0.3 || j%1000 == 0 && note_size > 0.1 || j%2000 == 0 && note_size > 0.0333) {
+        if(j%f0.getFPS() == 0 && note_size > 0.3 || j%(f0.getFPS()*10) == 0 && note_size > 0.1 || j%(f0.getFPS()*20) == 0 && note_size > 0.0333) {
             painter.drawLine(QLine(i, 0, i, height()));
-            painter.drawText(QPoint(i+1, 20), tr("%1:%2").arg(j/100/60, 2, 10, QChar('0')).arg(j/100%60, 2, 10, QChar('0')));
+            painter.drawText(QPoint(i+1, 20), tr("%1:%2").arg(j/f0.getFPS()/60, 2, 10, QChar('0')).arg(j/f0.getFPS()%60, 2, 10, QChar('0')));
         }
     }
 }
@@ -136,9 +137,6 @@ void PitchEditor::mousePressEvent(QMouseEvent *ev)
         lclick = true;
         switch(mode) {
         case eMouseMode::Select:
-            if(!selected.seted()) selected.setRef((x_scroll_offset + pos.x()) / note_size);
-            else selected.reset();
-            break;
         default:
         }
     }
@@ -153,8 +151,6 @@ void PitchEditor::mouseReleaseEvent(QMouseEvent *ev)
         lclick = false;
         switch(mode) {
         case eMouseMode::Select:
-            if(!selected.seted()) selected.setVar((x_scroll_offset + pos.x()) / note_size);
-            break;
         default:
         }
         centrex = selected.seted() ? (selected.getStart()+selected.getEnd())/2 : (x_scroll_offset + width()/2)/note_size;
@@ -164,9 +160,54 @@ void PitchEditor::mouseReleaseEvent(QMouseEvent *ev)
 
 void PitchEditor::keyPressEvent(QKeyEvent *ev)
 {
-    if(ev->key() == Qt::Key_Escape) {
-        clicked_other();
+    auto ctrl = [&]() -> bool {
+        if(ev->modifiers() & Qt::ControlModifier) return true;
+        return false;
+    };
+    auto alt = [&]() -> bool {
+        if(ev->modifiers() & Qt::AltModifier) return true;
+        return false;
+    };
+    int n(ev->key());
+    switch(n) {
+    case Qt::Key_Escape:
+        if(!ctrl() && !alt()) clicked_other();
+        break;
+    case Qt::Key_Up:
+        if(!ctrl() && !alt() && selected.seted()) {
+            for (auto i: selected.getIndex()) {
+                f0.setData(i, f0.getData(i) + 1);
+            }
+            update();
+        } else if(!ctrl() && alt() && selected.seted()) {
+            for (auto i: selected.getIndex()) {
+                f0.setData(i, f0.getData(i) + 0.01);
+            }
+            update();
+        }
+        break;
+    case Qt::Key_Down:
+        if(!ctrl() && !alt() && selected.seted()) {
+            for (auto i: selected.getIndex()) {
+                f0.setData(i, f0.getData(i) - 1);
+            }
+            update();
+        } else if(!ctrl() && alt() && selected.seted()) {
+            for (auto i: selected.getIndex()) {
+                f0.setData(i, f0.getData(i) - 0.01);
+            }
+            update();
+        }
+    case Qt::Key_Backspace:
+        if(!ctrl() && !alt() && selected.seted()) {
+            for (auto i: selected.getIndex()) {
+                f0.setData(i, Note());
+            }
+            update();
+        }
+    default:
     }
+
 }
 
 int PitchEditor::soundPosition(Note n)
@@ -276,57 +317,62 @@ void PitchEditor::clicked_other()
     update();
 }
 
-PitchEditor::area_t::area_t()
+PitchEditor::Area::Area()
     : ref(-1)
     , var(-1)
-{
-}
+{}
 
-int PitchEditor::area_t::getStart() const
+PitchEditor::Area::Area(int ref, int var)
+    : ref(ref >= 0 ? ref : -1)
+    , var(var >= 0 ? var : -1)
+{}
+
+int PitchEditor::Area::getStart() const
 {
     return ref < var ? ref : var;
 }
 
-int PitchEditor::area_t::getEnd() const
+int PitchEditor::Area::getEnd() const
 {
     return ref > var ? ref : var;
 }
 
-void PitchEditor::area_t::reset()
+void PitchEditor::Area::reset()
 {
     ref = var = -1;
 }
 
-void PitchEditor::area_t::setRef(int n)
+void PitchEditor::Area::setRef(int n)
 {
     if(n < 0) return;
     ref = n;
 }
 
-void PitchEditor::area_t::setVar(int n)
+void PitchEditor::Area::setVar(int n)
 {
     if(n < 0) return;
     var = n;
 }
 
-int PitchEditor::area_t::getRef() const
+int PitchEditor::Area::getRef() const
 {
     return ref;
 }
 
-int PitchEditor::area_t::getVar() const
+int PitchEditor::Area::getVar() const
 {
     return var;
 }
 
-bool PitchEditor::area_t::seted() const
+bool PitchEditor::Area::seted() const
 {
     return ref != -1 && var != -1;
 }
 
-QList<int> PitchEditor::area_t::getIndex() const
+QList<int> PitchEditor::Area::getIndex() const
 {
     if(!seted()) return QList<int>();
     QList<int> index;
     for(int i = getStart(); i < getEnd(); i++) index.append(i);
+    return index;
 }

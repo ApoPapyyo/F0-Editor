@@ -6,6 +6,7 @@
 #include <QPainter>
 #include <QWheelEvent>
 #include <QGestureEvent>
+#include <QMap>
 
 
 class Piano;
@@ -42,10 +43,17 @@ private:
         Write,
         Erase
     };
-    class area_t {
+    enum class eAction {
+        PitchShift,
+        PitchDel,
+        PitchMod
+    };
+
+    class Area {
         int ref, var;
     public:
-        area_t();
+        Area();
+        Area(int ref, int var);
         int getStart() const;
         int getEnd() const;
         int getRef() const;
@@ -57,6 +65,19 @@ private:
         QList<int> getIndex() const;
     };
 
+    struct Area2 {
+        int refx, refy;
+        int varx, vary;
+    };
+
+    struct ModLog {
+        eAction action;
+        Area area;
+        union data {
+            double diff;
+            QList<double> data;
+        };
+    };
     Note mouseSound(QPoint p) const;
     int soundPosition(Note n);
     void drawF0(QPainter &painter);
@@ -71,8 +92,9 @@ private:
     bool init;
     F0 f0;
     eMouseMode mode;
-    area_t selected;
+    Area selected;
     bool lclick;
+    QList<ModLog> modlog;
     static const int oct_max;
 signals:
     void mouseMoved(const QString &info);
