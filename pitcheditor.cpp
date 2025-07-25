@@ -38,7 +38,9 @@ void PitchEditor::paintEvent(QPaintEvent *ev)
 {
     QPainter painter(this);
     painter.setBrush(QColor(200, 200, 200));
-    painter.drawRect(QRect(0, 0, width(), height()));
+    if(!f0.getDataSize()) {
+        painter.drawRect(QRect(0, 0, width(), height()));
+    }
     painter.setPen(QColor(150, 150, 150));
     for (int i = y_scroll_offset; i < oct_max*12*piano_keyboard_width; i++) {
         if(i%piano_keyboard_width == 0) {
@@ -69,6 +71,7 @@ void PitchEditor::paintEvent(QPaintEvent *ev)
 void PitchEditor::drawF0(QPainter &painter)
 {
     int i(0), j(x_scroll_offset/note_size);
+    if(!f0.getDataSize()) return;
     painter.setBrush(QColor(255, 255, 255, 128));
     painter.drawRect(QRect(0, 0, std::min(f0.getDataSize()*note_size - x_scroll_offset, static_cast<double>(width())), height()));
     for(; i < width()+x_scroll_offset && j < f0.getDataSize(); j++) {
@@ -340,6 +343,7 @@ void PitchEditor::keyPressEvent(QKeyEvent *ev)
                 f0.setData(i, Note());
             }
             selected.clear();
+            update();
         }
         break;
     default:
@@ -378,19 +382,26 @@ int PitchEditor::get_y_scroll_offset() const
 
 void PitchEditor::set_x_scroll_offset(int x)
 {
-    if(0 <= x && x+width() < f0.getDataSize()*note_size) {
+    int x_max(f0.getDataSize()*note_size - width());
+    if(0 <= x && x < x_max) {
         x_scroll_offset = x;
-        update();
+    } else {
+        x_scroll_offset = x < 0 ? 0 : x_max;
     }
+    emit scrolleds(x_scroll_offset, y_scroll_offset);
+    update();
 }
 
 void PitchEditor::set_y_scroll_offset(int y)
 {
-    if(0 <= y && y+height() < oct_max*12*piano_keyboard_width) {
+    int y_max(oct_max*12*piano_keyboard_width - height());
+    if(0 <= y && y < y_max) {
         y_scroll_offset = y;
-        emit scrolleds(x_scroll_offset, y_scroll_offset);
-        update();
+    } else {
+        y_scroll_offset = y < 0 ? 0 : y_max;
     }
+    emit scrolleds(x_scroll_offset, y_scroll_offset);
+    update();
 }
 
 double PitchEditor::get_x_zoom() const

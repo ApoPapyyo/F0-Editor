@@ -15,7 +15,8 @@ SOURCES += \
     midi.cpp \
     midieditor.cpp \
     piano.cpp \
-    pitcheditor.cpp
+    pitcheditor.cpp \
+    synth.cpp
 
 HEADERS += \
     f0.h \
@@ -23,7 +24,8 @@ HEADERS += \
     midi.h \
     midieditor.h \
     piano.h \
-    pitcheditor.h
+    pitcheditor.h \
+    synth.h
 
 FORMS += \
     mainwindow.ui
