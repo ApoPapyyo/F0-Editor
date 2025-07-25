@@ -8,12 +8,14 @@ F0::F0()
     : _path()
     , _data()
     , _fps(0)
+    , _changed(false)
 {}
 
 F0::F0(QFileInfo &path)
     : _path()
     , _data()
     , _fps(0)
+    , _changed(false)
 {
     openF0(path);
 }
@@ -113,11 +115,13 @@ QList<Note> F0::getData(int first, int size) const
 
 void F0::setData(int i, Note d)
 {
+    _changed = true;
     if(0 < i && i < _data.size()) _data[i] = d;
 }
 
 void F0::setData(int first, const QList<Note> &ds)
 {
+    _changed = true;
     if(0 < first && first < _data.size() && first + ds.size() < _data.size()) {
         for(int i(0); i < ds.size(); i++) _data[i+first] = ds.at(i);
     }
@@ -126,14 +130,125 @@ void F0::setData(int first, const QList<Note> &ds)
 void F0::closeF0()
 {
     if(_data.empty()) {
-        QMessageBox::critical(nullptr, QObject::tr("エラー"), QObject::tr("まだデータが読み込まれていません"));
         return;
     } else {
         _data.clear();
     }
+    _changed = false;
 }
 
 int F0::getFPS() const
 {
     return _fps;
+}
+
+int F0::saveF0()
+{
+    if(_data.empty() || !_path.isFile()) return 1;
+    if(_path.suffix().toLower() == "csv") {
+        QFile file(_path.filePath());
+        if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
+            QMessageBox::critical(nullptr, QObject::tr("エラー"), QObject::tr("%1が開けませんでした。").arg(_path.filePath()));
+            return 1;
+        }
+        QTextStream out(&file);
+        int i(0);
+        for(auto note: _data) {
+            out << QObject::tr("%1,%2").arg(static_cast<double>(i)/_fps).arg(note.toHz());
+            out << "\n";
+            i++;
+        }
+        file.close();
+        _changed = false;
+        return 0;
+    } else if(_path.suffix().toLower() == "f0") {
+        QFile file(_path.filePath());
+        if (!file.open(QIODevice::WriteOnly | QIODevice::Unbuffered)) {
+            QMessageBox::critical(nullptr, QObject::tr("エラー"), QObject::tr("%1が開けませんでした。").arg(_path.filePath()));
+            return 1;
+        }
+        float ave(_data.at(0).toHz());
+        bool n(false);
+        for(auto note: _data) {
+            float f(note.toHz());
+            if(_fps == 100 && n) {
+                if(ave > 0.0) {
+                    ave += f;
+                    ave /= 2.0;
+                }
+                if(f == 0.0) ave = 0.0;
+                file.write(reinterpret_cast<const char *>(&ave), sizeof(float));
+                ave = f;
+            }
+            file.write(reinterpret_cast<const char*>(&f), sizeof(float));
+            n = true;
+        }
+        file.close();
+        _changed = false;
+        return 0;
+    } else {
+        return 1;
+    }
+}
+
+int F0::saveF0as(QFileInfo &path)
+{
+    if(_data.empty() || path.isDir()) return 1;
+    if(path.suffix().toLower() == "csv") {
+        QFile file(path.filePath());
+        if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
+            QMessageBox::critical(nullptr, QObject::tr("エラー"), QObject::tr("%1が開けませんでした。").arg(_path.filePath()));
+            return 1;
+        }
+        QTextStream out(&file);
+        int i(0);
+        for(auto note: _data) {
+            out << QObject::tr("%1,%2").arg(static_cast<double>(i)/_fps).arg(note.toHz());
+            out << "\n";
+            i++;
+        }
+        file.close();
+        _changed = false;
+        _path = path;
+        return 0;
+    } else if(path.suffix().toLower() == "f0") {
+        QFile file(path.filePath());
+        if (!file.open(QIODevice::WriteOnly | QIODevice::Unbuffered)) {
+            QMessageBox::critical(nullptr, QObject::tr("エラー"), QObject::tr("%1が開けませんでした。").arg(_path.filePath()));
+            return 1;
+        }
+        float ave(_data.at(0).toHz());
+        bool n(false);
+        for(auto note: _data) {
+            float f(note.toHz());
+            if(_fps == 100 && n) {
+                if(ave > 0.0) {
+                    ave += f;
+                    ave /= 2.0;
+                }
+                if(f == 0.0) ave = 0.0;
+                file.write(reinterpret_cast<const char *>(&ave), sizeof(float));
+                ave = f;
+            }
+            file.write(reinterpret_cast<const char*>(&f), sizeof(float));
+            n = true;
+        }
+        file.close();
+        _changed = false;
+        _path = path;
+        return 0;
+    } else {
+        return 1;
+    }
+}
+
+bool F0::isChanged() const
+{
+    return _changed;
+}
+
+QString F0::getFileName() const
+{
+    if(_data.empty()) return "";
+    return _path.fileName();
 }

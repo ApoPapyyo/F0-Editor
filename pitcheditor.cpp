@@ -3,6 +3,8 @@
 #include <QCursor>
 #include <QFileDialog>
 #include <QFileInfo>
+#include <QMessageBox>
+#include <cstdlib>
 #define SCROLL_OFFSET QPoint(-x_scroll_offset, -y_scroll_offset)
 
 const int PitchEditor::oct_max = 8;
@@ -23,6 +25,9 @@ PitchEditor::PitchEditor(QWidget *parent)
     , modlog()
     , mouse(eMouseAction::None)
     , draggedid(0)
+    , mousexy()
+    , sel(-1)
+    , lclick(false)
 {
     setMouseTracking(true);
     setFocusPolicy(Qt::StrongFocus);
@@ -42,6 +47,7 @@ void PitchEditor::paintEvent(QPaintEvent *ev)
     }
     if(!init) {
         y_scroll_offset -= height()/2;
+        emit titlechange("");
         init = true;
     }
     drawF0(painter);
@@ -57,6 +63,7 @@ void PitchEditor::paintEvent(QPaintEvent *ev)
     min = max;
     if(!selected.isEmpty()) for(auto i: selected) if(soundPosition(f0.getData(i)) < min) min = soundPosition(f0.getData(i));
     centrey = mouseSound(!selected.isEmpty() ? QPoint(0, (min + max)/2) : QPoint(0, height()/2));
+    if(f0.isChanged()) emit titlechange(QString("*") + f0.getFileName());
 }
 
 void PitchEditor::drawF0(QPainter &painter)
@@ -84,6 +91,7 @@ void PitchEditor::drawF0(QPainter &painter)
             painter.drawText(QPoint(i+1, 20), tr("%1:%2").arg(j/f0.getFPS()/60, 2, 10, QChar('0')).arg(j/f0.getFPS()%60, 2, 10, QChar('0')));
         }
     }
+
 }
 
 void PitchEditor::drawSelect(QPainter &painter)
@@ -165,18 +173,29 @@ void PitchEditor::mouseMoveEvent(QMouseEvent *ev)
     QPoint pos(QCursor::pos());
     pos = this->mapFromGlobal(pos);
     now = mouseSound(pos);
-    if(rectselect.seted()) {
-        rectselect.setVar(pos - SCROLL_OFFSET);
-    } else if(mouse == eMouseAction::PitchDrag) {
-        for(auto i: selected) {
-            if(draggedid == i) {
-                Note tmp(f0.getData(i));
-                f0.setData(i, mouseSound(pos));
-                double diff(f0.getData(i) - tmp);
-                for(auto j: selected) {
-                    if(draggedid != j) f0.setData(j, f0.getData(j) + diff);
+    if(lclick) {
+        if(mode == eMouseMode::Select) {
+            if(rectselect.seted()) {
+                rectselect.setVar(pos - SCROLL_OFFSET);
+            } else if(mousexy != pos) {//動いたらピッチシフトの操作で確定
+                mousexy = pos;
+                draggedid = sel;
+                mouse = eMouseAction::PitchDrag;
+                for(auto i: selected) {
+                    if(draggedid == i) {
+                        Note tmp(f0.getData(i));
+                        f0.setData(i, mouseSound(pos));
+                        double diff(f0.getData(i) - tmp);
+                        for(auto j: selected) {
+                            if(draggedid != j) f0.setData(j, f0.getData(j) + diff);
+                        }
+                        break;
+                    }
                 }
-                break;
+            }
+        } else if(mode == eMouseMode::Write) {
+            if(note_size > 4) {
+                f0.setData((x_scroll_offset + pos.x())/note_size, mouseSound(pos.y()));
             }
         }
     }
@@ -188,28 +207,39 @@ void PitchEditor::mousePressEvent(QMouseEvent *ev)
 {
     QPoint pos(QCursor::pos());
     pos = this->mapFromGlobal(pos);
+    lclick = true;
+    bool tch(false);
     if (ev->button() == Qt::LeftButton) {
         switch(mode) {
         case eMouseMode::Select:
-            if(selected.empty()) {
-                if(!(ev->modifiers() & Qt::ControlModifier)) {
-                    selected.clear();
-                }
-                rectselect.setRef(pos - SCROLL_OFFSET);
-                rectselect.setVar(pos - SCROLL_OFFSET);
-            } else {
-                if(note_size > 4) {
-                    for(auto i: selected) {
-                        if((i*note_size-x_scroll_offset - 2 <= pos.x() && pos.x() <= i*note_size-x_scroll_offset + 2) && (soundPosition(f0.getData(i)) - 2 <= pos.y() && pos.y() <= soundPosition(f0.getData(i)) + 2)) {
-                            mouse = eMouseAction::PitchDrag;
-                            draggedid = i;
-                            break;
+            if(note_size > 4) {
+                for(int i = x_scroll_offset / note_size; i*note_size < x_scroll_offset+width(); i++) {
+                    if(i*note_size-x_scroll_offset - 2 <= pos.x() && pos.x() <= i*note_size-x_scroll_offset + 2
+                        && soundPosition(f0.getData(i)) - 2 <= pos.y() && pos.y() <= soundPosition(f0.getData(i)) + 2) {
+                        if(! selected.contains(i)) {
+                            if(!(ev->modifiers() & Qt::ControlModifier)) selected.clear();
+                            selected.append(i);
+                            sel = -1;
+
+                        } else {
+                            mousexy = pos;
+                            //動くか動かないかは別で判定
+                            //動いたらピッチシフト、動かなかったら、選択の反転
+                            sel = i;
                         }
+                        tch = true;
+                        break;
                     }
                 }
-                if(mouse == eMouseAction::None) {
-                    selected.clear();
-                }
+            }
+            if(tch) break;
+            if(!(ev->modifiers() & Qt::ControlModifier)) selected.clear();
+            rectselect.setRef(pos - SCROLL_OFFSET);
+            rectselect.setVar(pos - SCROLL_OFFSET);
+            break;
+        case eMouseMode::Write:
+            if(note_size > 4) {
+                f0.setData((x_scroll_offset + pos.x())/note_size, mouseSound(pos.y()));
             }
             break;
         default:
@@ -223,6 +253,7 @@ void PitchEditor::mouseReleaseEvent(QMouseEvent *ev)
 {
     QPoint pos(QCursor::pos());
     pos = this->mapFromGlobal(pos);
+    lclick = false;
     if (ev->button() == Qt::LeftButton) {
         switch(mode) {
         case eMouseMode::Select:
@@ -236,6 +267,15 @@ void PitchEditor::mouseReleaseEvent(QMouseEvent *ev)
                 rectselect.reset();
             } else if(mouse == eMouseAction::PitchDrag) {
                 mouse = eMouseAction::None;
+            } else if(mousexy == pos){//選択反転
+                int i(sel);
+                for(auto j = selected.begin(); j != selected.end(); j++) {
+                    if(*j == i) {
+                        selected.erase(j);
+                        break;
+                    }
+                }
+                sel = -1;
             }
             break;
         default:
@@ -261,10 +301,46 @@ void PitchEditor::keyPressEvent(QKeyEvent *ev)
         if(!ctrl() && !alt()) clicked_other();
         break;
     case Qt::Key_Up:
+        if(!ctrl() && !alt()) {
+            set_y_scroll_offset(get_y_scroll_offset() - 10);
+        } else if(!ctrl() && alt()) {
+            if(!selected.empty()) {
+                for(auto i: selected) {
+                    f0.setData(i, f0.getData(i) + 1);
+                }
+                update();
+            }
+        }
         break;
     case Qt::Key_Down:
+        if(!ctrl() && !alt()) {
+            set_y_scroll_offset(get_y_scroll_offset() + 10);
+        } else if(!ctrl() && alt()) {
+            if(!selected.empty()) {
+                for(auto i: selected) {
+                    f0.setData(i, f0.getData(i) - 1);
+                }
+                update();
+            }
+        }
+        break;
+    case Qt::Key_Left:
+        if(!ctrl() && !alt()) {
+            set_x_scroll_offset(get_x_scroll_offset() - 5);
+        }
+        break;
+    case Qt::Key_Right:
+        if(!ctrl() && !alt()) {
+            set_x_scroll_offset(get_x_scroll_offset() + 5);
+        }
         break;
     case Qt::Key_Backspace:
+        if(!selected.empty()) {
+            for(auto i: selected) {
+                f0.setData(i, Note());
+            }
+            selected.clear();
+        }
         break;
     default:
         break;
@@ -358,6 +434,7 @@ void PitchEditor::open_f0()
         ));
     if (!f0.openF0(fn)) {
         for(note_size = 0.0; note_size * f0.getDataSize() < width(); note_size+=0.01);
+        emit titlechange(QString(f0.isChanged() ? "*" : "") + f0.getFileName());
         update();
     }
 
@@ -365,16 +442,95 @@ void PitchEditor::open_f0()
 
 void PitchEditor::close_f0()
 {
+    if(f0.isChanged()) {
+        int reply(question());
+
+        if (reply == 0) {
+            save_f0();
+        } else if(reply == 2) {
+            update();
+            return;
+        };
+    }
     f0.closeF0();
     x_scroll_offset = 0;
     rectselect.reset();
+    selected.clear();
+    emit titlechange(QString(f0.isChanged() ? "*" : "") + f0.getFileName());
     update();
+}
+
+void PitchEditor::closeEvent(QCloseEvent *ev)
+{
+    if(f0.isChanged()) {
+        int reply(question());
+
+        if (reply == 0) {
+            save_f0();
+        } else if(reply == 2) {
+            update();
+            ev->ignore();
+            return;
+        };
+    }
+    f0.closeF0();
+    x_scroll_offset = 0;
+    rectselect.reset();
+    selected.clear();
+    ev->accept();
+}
+
+int PitchEditor::question() const
+{
+    QMessageBox::StandardButton reply;
+    reply = QMessageBox::question(nullptr,
+                                  tr("確認"),
+                                  tr("ファイルが変更されています。保存しますか？"),
+                                  QMessageBox::Yes | QMessageBox::No | QMessageBox::Cancel);
+    if (reply == QMessageBox::Yes) return 0;
+    else if(reply == QMessageBox::No) return 1;
+    else return 2;
+}
+
+void PitchEditor::save_f0()
+{
+    if(f0.getDataSize() == 0) return;
+    if(f0.saveF0()) return;
+    emit titlechange(QString("") + f0.getFileName());
+}
+
+void PitchEditor::save_f0_as()
+{
+    if(f0.getDataSize() == 0) return;
+    QFileInfo fn(QFileDialog::getSaveFileName(
+        this,
+        tr("ファイルを保存"),
+        "",
+        tr("RVC用F0ファイル (*.csv);;NEUTRINO用F0ファイル (*.f0)")
+        ));
+    if(fn.suffix().toLower() != "csv" && fn.suffix().toLower() != "f0") {
+        fn.setFile(fn.filePath() + ".csv");
+    }
+    if(f0.saveF0as(fn)) return;
+    emit titlechange(QString("") + f0.getFileName());
 }
 
 void PitchEditor::clicked_other()
 {
     rectselect.reset();
+    selected.clear();
     update();
+}
+
+void PitchEditor::setMode(eMouseMode mode)
+{
+    this->mode = mode;
+    update();
+}
+
+PitchEditor::eMouseMode PitchEditor::getMode() const
+{
+    return mode;
 }
 
 PitchEditor::Area::Area()

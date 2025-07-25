@@ -15,6 +15,11 @@ class PitchEditor : public QWidget
 {
     Q_OBJECT
 public:
+    enum class eMouseMode {
+        Select,
+        Write,
+        Erase
+    };
     explicit PitchEditor(QWidget *parent = nullptr);
     friend class Piano;
     int get_x_scroll_offset() const;
@@ -27,6 +32,8 @@ public:
     void set_y_scroll_offset(int y);
     void set_x_zoom(double x);
     void set_y_zoom(int y);
+    void setMode(eMouseMode mode);
+    eMouseMode getMode() const;
 
 protected:
     void paintEvent(QPaintEvent *ev);
@@ -38,11 +45,6 @@ protected:
 
 
 private:
-    enum class eMouseMode {
-        Select,
-        Write,
-        Erase
-    };
     enum class eAction {
         PitchShift,
         PitchDel,
@@ -103,6 +105,7 @@ private:
     int soundPosition(Note n);
     void drawF0(QPainter &painter);
     void drawSelect(QPainter &painter);
+    int question() const;
     int piano_keyboard_width;
     double note_size;
     Note now;
@@ -118,14 +121,21 @@ private:
     QList<ModLog> modlog;
     eMouseAction mouse;
     int draggedid;
+    QPoint mousexy;
+    int sel;
+    bool lclick;
     static const int oct_max;
 signals:
     void mouseMoved(const QString &info);
     void scrolleds(int x, int y);
+    void titlechange(const QString &title);
 public slots:
     void open_f0();
     void close_f0();
+    void save_f0();
+    void save_f0_as();
     void clicked_other();
+    void closeEvent(QCloseEvent *ev);
 
 };
 
