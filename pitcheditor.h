@@ -105,6 +105,7 @@ private:
     void drawF0(QPainter &painter);
     void drawSelect(QPainter &painter);
     int question() const;
+
     int piano_keyboard_width;
     double note_size;
     Note now;

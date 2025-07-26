@@ -7,6 +7,15 @@
 #include <cstdlib>
 #define SCROLL_OFFSET QPoint(-x_scroll_offset, -y_scroll_offset)
 
+int count_true(QBitArray &b)
+{
+    int ret(0);
+    for(int i = 0; i < b.count(); i++) {
+        if(b.testBit(i)) ret++;
+    }
+    return ret;
+}
+
 const int PitchEditor::oct_max = 8;
 PitchEditor::PitchEditor(QWidget *parent)
     : QWidget{parent}
@@ -62,7 +71,7 @@ void PitchEditor::paintEvent(QPaintEvent *ev)
     int max = 0, min = 0;
     int nmax(0), nmin(piano_keyboard_width*12*oct_max);
     bool mn(false);
-    if(select.count()) for(int i = 0; i < f0.getDataSize(); i++) {
+    if(count_true(select)) for(int i = 0; i < f0.getDataSize(); i++) {
         if(!select.testBit(i)) continue;
         if(!mn) {
             mn = true;
@@ -72,8 +81,8 @@ void PitchEditor::paintEvent(QPaintEvent *ev)
         if(nmax < soundPosition(f0.getData(i))+y_scroll_offset) nmax = soundPosition(f0.getData(i))+y_scroll_offset;
         else if(nmin > soundPosition(f0.getData(i))+y_scroll_offset) nmin = soundPosition(f0.getData(i))+y_scroll_offset;
     }
-    centrex = select.count() ? (min + max)/2 : (x_scroll_offset + width()/2)/note_size;
-    centrey = pos2sound(select.count() ? (nmax + nmin)/2 : height()/2+y_scroll_offset);
+    centrex = count_true(select) ? (min + max)/2 : centrex;
+    centrey = pos2sound(count_true(select) ? (nmax + nmin)/2 : height()/2+y_scroll_offset);
     if(f0.isChanged()) emit titlechange(QString("*") + f0.getFileName());
 }
 
@@ -327,7 +336,7 @@ void PitchEditor::keyPressEvent(QKeyEvent *ev)
         if(!ctrl() && !alt()) {
             set_y_scroll_offset(get_y_scroll_offset() - 10);
         } else if(!ctrl() && alt()) {
-            if(select.count()) {
+            if(count_true(select)) {
                 modlog.pushShiftLog(select, 1.0);
                 for(int i = 0; i < f0.getDataSize(); i++) {
                     if(!select.testBit(i)) continue;
@@ -342,7 +351,7 @@ void PitchEditor::keyPressEvent(QKeyEvent *ev)
         if(!ctrl() && !alt()) {
             set_y_scroll_offset(get_y_scroll_offset() + 10);
         } else if(!ctrl() && alt()) {
-            if(select.count()) {
+            if(count_true(select)) {
                 modlog.pushShiftLog(select, -1.0);
                 for(int i = 0; i < f0.getDataSize(); i++) {
                     if(!select.testBit(i)) continue;
@@ -364,7 +373,7 @@ void PitchEditor::keyPressEvent(QKeyEvent *ev)
         }
         break;
     case Qt::Key_Backspace:
-        if(select.count()) {
+        if(count_true(select)) {
             QList<Note> backup;
             for(int i = 0; i < f0.getDataSize(); i++) {
                 if(!select.testBit(i)) continue;
@@ -419,6 +428,7 @@ void PitchEditor::set_x_scroll_offset(int x)
         x_scroll_offset = x < 0 ? 0 : x_max;
     }
     emit scrolleds(x_scroll_offset, y_scroll_offset);
+    centrex = count_true(select) ? centrex : ((x_scroll_offset + width()/2)/note_size);
     update();
 }
 
@@ -728,6 +738,10 @@ void PitchEditor::ModLog::pushShiftLog(QBitArray &target, double diff)
     d.diffs.append(diff);
     data.append(std::move(d));
     index++;
+    if(index >= 100) {
+        index--;
+        data.erase(data.begin());
+    }
 }
 
 void PitchEditor::ModLog::pushWriteLog(QBitArray &target, QList<double> &diffs)
@@ -744,6 +758,10 @@ void PitchEditor::ModLog::pushWriteLog(QBitArray &target, QList<double> &diffs)
     d.diffs.append(std::move(diffs));
     data.append(std::move(d));
     index++;
+    if(index >= 100) {
+        index--;
+        data.erase(data.begin());
+    }
 }
 
 void PitchEditor::ModLog::pushEraseLog(QBitArray &target, QList<Note> &pasts)
@@ -760,6 +778,10 @@ void PitchEditor::ModLog::pushEraseLog(QBitArray &target, QList<Note> &pasts)
     d.pasts.append(std::move(pasts));
     data.append(std::move(d));
     index++;
+    if(index >= 100) {
+        index--;
+        data.erase(data.begin());
+    }
 }
 
 void PitchEditor::ModLog::undo(F0 &f0)
