@@ -26,6 +26,9 @@ MainWindow::MainWindow(QWidget *parent)
     if(m == PitchEditor::eMouseMode::Select) ui->select_tool->setChecked(true);
     else if(m == PitchEditor::eMouseMode::Write) ui->write_tool->setChecked(true);
     else if(m == PitchEditor::eMouseMode::Erase) ui->erase_tool->setChecked(true);
+    connect(ui->action_undo, &QAction::triggered, editor->get_pe(), &PitchEditor::undo);
+    connect(ui->action_redo, &QAction::triggered, editor->get_pe(), &PitchEditor::redo);
+    connect(editor->get_pe(), &PitchEditor::undo_redo_tgl, this, &MainWindow::undo_redo_tgl);
 }
 
 MainWindow::~MainWindow()
@@ -66,3 +69,8 @@ void MainWindow::on_write_tool_toggled(bool checked)
     if(checked) editor->get_pe()->setMode(PitchEditor::eMouseMode::Write);
 }
 
+void MainWindow::undo_redo_tgl(bool undo, bool redo)
+{
+    ui->action_undo->setEnabled(undo);
+    ui->action_redo->setEnabled(redo);
+}

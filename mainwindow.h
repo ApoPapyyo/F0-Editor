@@ -32,5 +32,6 @@ private slots:
     void on_select_tool_toggled(bool checked);
     void on_erase_tool_toggled(bool checked);
     void on_write_tool_toggled(bool checked);
+    void undo_redo_tgl(bool undo, bool redo);
 };
 #endif // MAINWINDOW_H

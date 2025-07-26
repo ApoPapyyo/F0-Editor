@@ -21,18 +21,21 @@ PitchEditor::PitchEditor(QWidget *parent)
     , f0()
     , mode(eMouseMode::Select)
     , rectselect()
-    , selected()
+    , select()
     , modlog()
     , mouse(eMouseAction::None)
     , draggedid(0)
     , mousexy()
     , sel(-1)
     , lclick(false)
+    , dragdiff(0.0)
+    , writediff()
 {
     setMouseTracking(true);
     setFocusPolicy(Qt::StrongFocus);
     this->grabGesture(Qt::PinchGesture);
 }
+
 
 void PitchEditor::paintEvent(QPaintEvent *ev)
 {
@@ -50,21 +53,27 @@ void PitchEditor::paintEvent(QPaintEvent *ev)
     if(!init) {
         y_scroll_offset -= height()/2;
         emit titlechange("");
+        emit undo_redo_tgl(modlog.undo_able(), modlog.redo_able());
         init = true;
     }
     drawF0(painter);
     drawSelect(painter);
 
-    int max = 0;
-    if(!selected.isEmpty()) for(auto i: selected) if(i > max) max = i;
-    int min = max;
-    if(!selected.isEmpty()) for(auto i: selected) if(i < min) min = i;
-    centrex = !selected.isEmpty() ? (min + max)/2 : (x_scroll_offset + width()/2)/note_size;
-    max = 0;
-    if(!selected.isEmpty()) for(auto i: selected) if(soundPosition(f0.getData(i)) > max) max = soundPosition(f0.getData(i));
-    min = max;
-    if(!selected.isEmpty()) for(auto i: selected) if(soundPosition(f0.getData(i)) < min) min = soundPosition(f0.getData(i));
-    centrey = mouseSound(!selected.isEmpty() ? QPoint(0, (min + max)/2) : QPoint(0, height()/2));
+    int max = 0, min = 0;
+    int nmax(0), nmin(piano_keyboard_width*12*oct_max);
+    bool mn(false);
+    if(select.count()) for(int i = 0; i < f0.getDataSize(); i++) {
+        if(!select.testBit(i)) continue;
+        if(!mn) {
+            mn = true;
+            min = i;
+        }
+        max = i;
+        if(nmax < soundPosition(f0.getData(i))+y_scroll_offset) nmax = soundPosition(f0.getData(i))+y_scroll_offset;
+        else if(nmin > soundPosition(f0.getData(i))+y_scroll_offset) nmin = soundPosition(f0.getData(i))+y_scroll_offset;
+    }
+    centrex = select.count() ? (min + max)/2 : (x_scroll_offset + width()/2)/note_size;
+    centrey = pos2sound(select.count() ? (nmax + nmin)/2 : height()/2+y_scroll_offset);
     if(f0.isChanged()) emit titlechange(QString("*") + f0.getFileName());
 }
 
@@ -77,9 +86,9 @@ void PitchEditor::drawF0(QPainter &painter)
     for(; i < width()+x_scroll_offset && j < f0.getDataSize(); j++) {
         i = j*note_size - x_scroll_offset;
         Note d(f0.getData(j)), d2(j+1 < f0.getDataSize() ? f0.getData(j+1) : Note());
-        if(!selected.contains(j)) painter.setPen(QColor(200, 80, 0));
+        if(!select.testBit(j)) painter.setPen(QColor(200, 80, 0));
         else painter.setPen(QColor(0, 100, 200));
-        if(!selected.contains(j)) painter.setBrush(QColor(200, 80, 0));
+        if(!select.testBit(j)) painter.setBrush(QColor(200, 80, 0));
         else painter.setBrush(QColor(0, 100, 200));
         if(d != Note() && d2 != Note()) {
             if(note_size > 4) painter.drawEllipse(QRect(i-2, soundPosition(d)-2, 4, 4));
@@ -184,25 +193,25 @@ void PitchEditor::mouseMoveEvent(QMouseEvent *ev)
                 mousexy = pos;
                 draggedid = sel;
                 mouse = eMouseAction::PitchDrag;
-                for(auto i: selected) {
-                    if(draggedid == i) {
-                        Note tmp(f0.getData(i));
-                        f0.setData(i, mouseSound(pos));
-                        double diff(f0.getData(i) - tmp);
-                        for(auto j: selected) {
-                            if(draggedid != j) f0.setData(j, f0.getData(j) + diff);
-                        }
-                        break;
-                    }
+                Note tmp(f0.getData(draggedid));
+                f0.setData(draggedid, mouseSound(pos));
+                double diff(f0.getData(draggedid) - tmp);
+                dragdiff += diff;
+                for(int i = 0; i < f0.getDataSize(); i++) {
+                    if(!select.testBit(i) || i == draggedid) continue;
+                    f0.setData(i, f0.getData(i) + diff);
                 }
             }
         } else if(mode == eMouseMode::Write) {
             if(note_size > 4) {
+                int index((x_scroll_offset + pos.x())/note_size);
+                writediff[index] = mouseSound(pos.y()) - f0.getData((x_scroll_offset + pos.x())/note_size) + (writediff.keys().contains(index) ? writediff[index] : 0.0);
                 f0.setData((x_scroll_offset + pos.x())/note_size, mouseSound(pos.y()));
             }
         }
     }
     emit mouseMoved(tr("%1Hzは%2(%3セント). A4=440Hzとした%2は%4Hz. C0との音程は%5.").arg(now.toHz()).arg(now.toStr()).arg(now.getCent()*100).arg(Note(now.getName(), 0.0, now.getOct()).toHz()).arg(now-Note(Note::C, 0.0, 0)));
+    emit undo_redo_tgl(modlog.undo_able(), modlog.redo_able());
     update();
 }
 
@@ -219,15 +228,15 @@ void PitchEditor::mousePressEvent(QMouseEvent *ev)
                 for(int i = x_scroll_offset / note_size; i*note_size < x_scroll_offset+width(); i++) {
                     if(i*note_size-x_scroll_offset - 2 <= pos.x() && pos.x() <= i*note_size-x_scroll_offset + 2
                         && soundPosition(f0.getData(i)) - 2 <= pos.y() && pos.y() <= soundPosition(f0.getData(i)) + 2) {
-                        if(! selected.contains(i)) {
-                            if(!(ev->modifiers() & Qt::ControlModifier)) selected.clear();
-                            selected.append(i);
+                        if(!select.testBit(i)) {
+                            if(!(ev->modifiers() & Qt::ControlModifier)) select.fill(false);
+                            select.setBit(i, true);
                             sel = -1;
-
                         } else {
                             mousexy = pos;
                             //動くか動かないかは別で判定
                             //動いたらピッチシフト、動かなかったら、選択の反転
+                            dragdiff = 0.0;
                             sel = i;
                         }
                         tch = true;
@@ -236,12 +245,15 @@ void PitchEditor::mousePressEvent(QMouseEvent *ev)
                 }
             }
             if(tch) break;
-            if(!(ev->modifiers() & Qt::ControlModifier)) selected.clear();
+            if(!(ev->modifiers() & Qt::ControlModifier)) select.fill(false);
             rectselect.setRef(pos - SCROLL_OFFSET);
             rectselect.setVar(pos - SCROLL_OFFSET);
             break;
         case eMouseMode::Write:
             if(note_size > 4) {
+                writediff.clear();
+                int index((x_scroll_offset + pos.x())/note_size);
+                writediff[index] = mouseSound(pos.y()) - f0.getData((x_scroll_offset + pos.x())/note_size) + (writediff.keys().contains(index) ? writediff[index] : 0.0);
                 f0.setData((x_scroll_offset + pos.x())/note_size, mouseSound(pos.y()));
             }
             break;
@@ -249,6 +261,7 @@ void PitchEditor::mousePressEvent(QMouseEvent *ev)
             break;
         }
     }
+    emit undo_redo_tgl(modlog.undo_able(), modlog.redo_able());
     update();
 }
 
@@ -265,20 +278,27 @@ void PitchEditor::mouseReleaseEvent(QMouseEvent *ev)
                 Note top(pos2sound(rectselect.getRect().top())), bottom(pos2sound(rectselect.getRect().bottom()));
                 if(f0.getDataSize()) for(int i = rectselect.getRect().left()/note_size; i < rectselect.getRect().right()/note_size; i++) {
                     Note d(f0.getData(i));
-                    if(bottom <= d && d <= top) selected.append(i);
+                    if(bottom <= d && d <= top) select.setBit(i, true);
                 }
                 rectselect.reset();
             } else if(mouse == eMouseAction::PitchDrag) {
+                modlog.pushShiftLog(select, dragdiff);
                 mouse = eMouseAction::None;
             } else if(mousexy == pos){//選択反転
-                int i(sel);
-                for(auto j = selected.begin(); j != selected.end(); j++) {
-                    if(*j == i) {
-                        selected.erase(j);
-                        break;
-                    }
-                }
+                select.setBit(sel, false);
                 sel = -1;
+            }
+            break;
+        case eMouseMode::Write:{
+                int index((x_scroll_offset + pos.x())/note_size);
+                writediff[index] = mouseSound(pos.y()) - f0.getData((x_scroll_offset + pos.x())/note_size) + (writediff.keys().contains(index) ? writediff[index] : 0.0);
+                QBitArray tmp(f0.getDataSize(), false);
+                QList<double> diffs;
+                for(auto it = writediff.begin(); it != writediff.end(); it++) {
+                    tmp.setBit(it.key(), true);
+                    diffs.append(it.value());
+                }
+                modlog.pushWriteLog(tmp, diffs);
             }
             break;
         default:
@@ -307,8 +327,11 @@ void PitchEditor::keyPressEvent(QKeyEvent *ev)
         if(!ctrl() && !alt()) {
             set_y_scroll_offset(get_y_scroll_offset() - 10);
         } else if(!ctrl() && alt()) {
-            if(!selected.empty()) {
-                for(auto i: selected) {
+            if(select.count()) {
+                modlog.pushShiftLog(select, 1.0);
+                for(int i = 0; i < f0.getDataSize(); i++) {
+                    if(!select.testBit(i)) continue;
+
                     f0.setData(i, f0.getData(i) + 1);
                 }
                 update();
@@ -319,8 +342,11 @@ void PitchEditor::keyPressEvent(QKeyEvent *ev)
         if(!ctrl() && !alt()) {
             set_y_scroll_offset(get_y_scroll_offset() + 10);
         } else if(!ctrl() && alt()) {
-            if(!selected.empty()) {
-                for(auto i: selected) {
+            if(select.count()) {
+                modlog.pushShiftLog(select, -1.0);
+                for(int i = 0; i < f0.getDataSize(); i++) {
+                    if(!select.testBit(i)) continue;
+
                     f0.setData(i, f0.getData(i) - 1);
                 }
                 update();
@@ -338,18 +364,22 @@ void PitchEditor::keyPressEvent(QKeyEvent *ev)
         }
         break;
     case Qt::Key_Backspace:
-        if(!selected.empty()) {
-            for(auto i: selected) {
+        if(select.count()) {
+            QList<Note> backup;
+            for(int i = 0; i < f0.getDataSize(); i++) {
+                if(!select.testBit(i)) continue;
+                backup.append(f0.getData(i));
                 f0.setData(i, Note());
             }
-            selected.clear();
+            modlog.pushEraseLog(select, backup);
+            select.fill(false);
             update();
         }
         break;
     default:
         break;
     }
-
+    emit undo_redo_tgl(modlog.undo_able(), modlog.redo_able());
 }
 
 int PitchEditor::soundPosition(Note n)
@@ -445,6 +475,8 @@ void PitchEditor::open_f0()
         ));
     if (!f0.openF0(fn)) {
         for(note_size = 0.0; note_size * f0.getDataSize() < width(); note_size+=0.01);
+        select.resize(f0.getDataSize());
+        select.fill(false);
         emit titlechange(QString(f0.isChanged() ? "*" : "") + f0.getFileName());
         update();
     }
@@ -466,7 +498,7 @@ void PitchEditor::close_f0()
     f0.closeF0();
     x_scroll_offset = 0;
     rectselect.reset();
-    selected.clear();
+    select.clear();
     emit titlechange(QString(f0.isChanged() ? "*" : "") + f0.getFileName());
     update();
 }
@@ -487,7 +519,7 @@ void PitchEditor::closeEvent(QCloseEvent *ev)
     f0.closeF0();
     x_scroll_offset = 0;
     rectselect.reset();
-    selected.clear();
+    select.clear();
     ev->accept();
 }
 
@@ -529,7 +561,7 @@ void PitchEditor::save_f0_as()
 void PitchEditor::clicked_other()
 {
     rectselect.reset();
-    selected.clear();
+    select.fill(false);
     update();
 }
 
@@ -544,64 +576,16 @@ PitchEditor::eMouseMode PitchEditor::getMode() const
     return mode;
 }
 
-PitchEditor::Area::Area()
-    : ref(-1)
-    , var(-1)
-{}
-
-PitchEditor::Area::Area(int ref, int var)
-    : ref(ref >= 0 ? ref : -1)
-    , var(var >= 0 ? var : -1)
-{}
-
-int PitchEditor::Area::getStart() const
+void PitchEditor::undo()
 {
-    return ref < var ? ref : var;
+    modlog.undo(f0);
+    emit undo_redo_tgl(modlog.undo_able(), modlog.redo_able());
 }
 
-int PitchEditor::Area::getEnd() const
+void PitchEditor::redo()
 {
-    return ref > var ? ref : var;
-}
-
-void PitchEditor::Area::reset()
-{
-    ref = var = -1;
-}
-
-void PitchEditor::Area::setRef(int n)
-{
-    if(n < 0) return;
-    ref = n;
-}
-
-void PitchEditor::Area::setVar(int n)
-{
-    if(n < 0) return;
-    var = n;
-}
-
-int PitchEditor::Area::getRef() const
-{
-    return ref;
-}
-
-int PitchEditor::Area::getVar() const
-{
-    return var;
-}
-
-bool PitchEditor::Area::seted() const
-{
-    return ref != -1 && var != -1;
-}
-
-QList<int> PitchEditor::Area::getIndex() const
-{
-    if(!seted()) return QList<int>();
-    QList<int> index;
-    for(int i = getStart(); i < getEnd(); i++) index.append(i);
-    return index;
+    modlog.redo(f0);
+    emit undo_redo_tgl(modlog.undo_able(), modlog.redo_able());
 }
 
 PitchEditor::Area2::Area2()
@@ -691,4 +675,188 @@ bool PitchEditor::Area2::isin(const QPoint &n) const
 bool PitchEditor::Area2::isempty() const
 {
     return !ref && !var;
+}
+
+PitchEditor::ModLog::ModLog()
+    : index(0)
+    , data()
+{}
+
+PitchEditor::ModLog::~ModLog()
+{
+    if(!data.empty()) data.clear();
+}
+
+QString PitchEditor::ModLog::getActionName() const
+{
+    if(data.size() <= 0) return tr("空");
+    QString ret;
+    for(int i = data.size()-1; i >= 0; i--) {
+        switch(data.at(i).action) {
+        case eAction::PitchShift:
+            ret += tr("%1個のピッチシフト%2").arg(data.at(index).diffs.size()).arg(index == i ? "←" : "");
+            break;
+        case eAction::PitchDel:
+            ret += tr("%1個のピッチの削除%2").arg(data.at(index).pasts.size()).arg(index == i ? "←" : "");
+            break;
+        case eAction::PitchMod:
+            ret += tr("%1個のピッチの新規追加%2").arg(data.at(index).pasts.size()).arg(index == i ? "←" : "");
+            break;
+        default:
+            break;
+        }
+        ret += "\n";
+    }
+    return ret;
+}
+
+/* 1           2
+ * ピッチシフト、ピッチシフト
+ * index = 2
+ */
+
+void PitchEditor::ModLog::pushShiftLog(QBitArray &target, double diff)
+{
+    //何かしらUndoされたあとのpushLog
+    if(index < data.size()) {
+        int n(data.size()-index);
+        data.erase(data.end() - n, data.end());
+    }
+    Data d;
+    d.action = eAction::PitchShift;
+    d.target = target;
+    d.diffs.append(diff);
+    data.append(std::move(d));
+    index++;
+}
+
+void PitchEditor::ModLog::pushWriteLog(QBitArray &target, QList<double> &diffs)
+{
+    //何かしらUndoされたあとのpushLog
+    if(index < data.size()) {
+        int n(data.size()-index);
+        data.erase(data.end() - n, data.end());
+    }
+    Data d;
+    d.action = eAction::PitchMod;
+    d.target = target;
+    if(diffs.empty()) return;
+    d.diffs.append(std::move(diffs));
+    data.append(std::move(d));
+    index++;
+}
+
+void PitchEditor::ModLog::pushEraseLog(QBitArray &target, QList<Note> &pasts)
+{
+    //何かしらUndoされたあとのpushLog
+    if(index < data.size()) {
+        int n(data.size()-index);
+        data.erase(data.end() - n, data.end());
+    }
+    Data d;
+    d.action = eAction::PitchDel;
+    d.target = target;
+    if(pasts.empty()) return;
+    d.pasts.append(std::move(pasts));
+    data.append(std::move(d));
+    index++;
+}
+
+void PitchEditor::ModLog::undo(F0 &f0)
+{
+    if(index == 0) return;
+
+    Data d(data.takeAt(index-1));
+    switch(d.action) {
+    case eAction::PitchShift:
+        if(d.diffs.size() == 1) {
+            double diff(d.diffs.at(0));
+            for(int i = 0; i < f0.getDataSize(); i++) {
+                if(!d.target.testBit(i)) continue;
+
+                f0.setData(i, f0.getData(i) - diff);
+            }
+            index--;
+        }
+        break;
+    case eAction::PitchMod:
+        if(d.diffs.size() > 0) {
+            auto &diffs(d.diffs);
+            int j(0);
+            for(int i = 0; i < f0.getDataSize(); i++) {
+                if(!d.target.testBit(i)) continue;
+
+                f0.setData(i, f0.getData(i) - diffs.at(j++));
+            }
+            index--;
+        }
+        break;
+    case eAction::PitchDel:
+        if(d.pasts.size() > 0) {
+            auto &pasts(d.pasts);
+            int j(0);
+            for(int i = 0; i < f0.getDataSize(); i++) {
+                if(!d.target.testBit(i)) continue;
+
+                f0.setData(i, pasts.at(j++));
+            }
+            index--;
+        }
+    }
+    data.insert(index, std::move(d));
+}
+
+void PitchEditor::ModLog::redo(F0 &f0)
+{
+    if(data.size() - index <= 0) return;
+
+    Data d(data.takeAt(index));
+    switch(d.action) {
+    case eAction::PitchShift:
+        if(d.diffs.size() == 1) {
+            double diff(d.diffs.at(0));
+            for(int i = 0; i < f0.getDataSize(); i++) {
+                if(!d.target.testBit(i)) continue;
+
+                f0.setData(i, f0.getData(i) + diff);
+            }
+            index++;
+        }
+        break;
+    case eAction::PitchMod:
+        if(d.diffs.size() > 0) {
+            auto &diffs(d.diffs);
+            int j(0);
+            for(int i = 0; i < f0.getDataSize(); i++) {
+                if(!d.target.testBit(i)) continue;
+
+                f0.setData(i, f0.getData(i) + diffs.at(j++));
+            }
+            index++;
+        }
+        break;
+    case eAction::PitchDel:
+        if(d.pasts.size() > 0) {
+            auto &pasts(d.pasts);
+            int j(0);
+            for(int i = 0; i < f0.getDataSize(); i++) {
+                if(!d.target.testBit(i)) continue;
+
+                f0.setData(i, Note());
+            }
+            index++;
+        }
+        break;
+    }
+    data.insert(index-1, std::move(d));
+}
+
+bool PitchEditor::ModLog::undo_able() const
+{
+    return index > 0;
+}
+
+bool PitchEditor::ModLog::redo_able() const
+{
+    return index < data.size();
 }

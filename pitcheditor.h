@@ -6,6 +6,7 @@
 #include <QPainter>
 #include <QWheelEvent>
 #include <QGestureEvent>
+#include <QBitArray>
 #include <QMap>
 
 
@@ -55,22 +56,6 @@ private:
         PitchDrag,
     };
 
-    class Area {
-        int ref, var;
-    public:
-        Area();
-        Area(int ref, int var);
-        int getStart() const;
-        int getEnd() const;
-        int getRef() const;
-        int getVar() const;
-        void reset();
-        void setRef(int n);
-        void setVar(int n);
-        bool seted() const;
-        QList<int> getIndex() const;
-    };
-
     class Area2 {
         QPoint *ref;
         QPoint *var;
@@ -90,14 +75,28 @@ private:
         bool isempty() const;
     };
 
-    struct ModLog {
-        eAction action;
-        Area area;
-        union data {
-            double diff;
-            QList<double> data;
+    class ModLog {
+        struct Data {
+            eAction action;
+            QBitArray target;
+            QList<double> diffs;
+            QList<Note> pasts;
         };
+        int index;
+        QList<Data> data;
+    public:
+        ModLog();
+        ~ModLog();
+        QString getActionName() const;
+        void pushShiftLog(QBitArray &target, double diff);
+        void pushWriteLog(QBitArray &target, QList<double> &diffs);
+        void pushEraseLog(QBitArray &target, QList<Note> &pasts);
+        void undo(F0 &f0);
+        void redo(F0 &f0);
+        bool undo_able() const;
+        bool redo_able() const;
     };
+
     Note mouseSound(QPoint p) const;
     Note mouseSound(int y) const;
     Note pos2sound(QPoint p) const;
@@ -117,18 +116,21 @@ private:
     F0 f0;
     eMouseMode mode;
     Area2 rectselect;
-    QList<int> selected;
-    QList<ModLog> modlog;
+    QBitArray select;
+    ModLog modlog;
     eMouseAction mouse;
     int draggedid;
     QPoint mousexy;
     int sel;
     bool lclick;
+    double dragdiff;
+    QMap<int,double> writediff;
     static const int oct_max;
 signals:
     void mouseMoved(const QString &info);
     void scrolleds(int x, int y);
     void titlechange(const QString &title);
+    void undo_redo_tgl(bool undo, bool redo);
 public slots:
     void open_f0();
     void close_f0();
@@ -136,6 +138,8 @@ public slots:
     void save_f0_as();
     void clicked_other();
     void closeEvent(QCloseEvent *ev);
+    void redo();
+    void undo();
 
 };
 
