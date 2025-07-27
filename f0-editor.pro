@@ -17,7 +17,7 @@ SOURCES += \
     piano.cpp \
     pitcheditor.cpp \
     synth.cpp \
-    wavegenerator.cpp
+    synthworker.cpp
 
 HEADERS += \
     f0.h \
@@ -27,7 +27,7 @@ HEADERS += \
     piano.h \
     pitcheditor.h \
     synth.h \
-    wavegenerator.h
+    synthworker.h
 
 FORMS += \
     mainwindow.ui
