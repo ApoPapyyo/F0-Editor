@@ -38,7 +38,8 @@ PitchEditor::PitchEditor(QWidget *parent)
     , sel(-1)
     , lclick(false)
     , dragdiff(0.0)
-    , writediff()
+    , writed()
+    , writepast()
 {
     setMouseTracking(true);
     setFocusPolicy(Qt::StrongFocus);
@@ -214,8 +215,9 @@ void PitchEditor::mouseMoveEvent(QMouseEvent *ev)
         } else if(mode == eMouseMode::Write) {
             if(note_size > 4) {
                 int index((x_scroll_offset + pos.x())/note_size);
-                writediff[index] = mouseSound(pos.y()) - f0.getData((x_scroll_offset + pos.x())/note_size) + (writediff.keys().contains(index) ? writediff[index] : 0.0);
-                f0.setData((x_scroll_offset + pos.x())/note_size, mouseSound(pos.y()));
+                if(!writepast.contains(index)) writepast[index] = f0.getData(index);
+                writed[index] = mouseSound(pos.y());
+                f0.setData(index, mouseSound(pos.y()));
             }
         }
     }
@@ -260,10 +262,10 @@ void PitchEditor::mousePressEvent(QMouseEvent *ev)
             break;
         case eMouseMode::Write:
             if(note_size > 4) {
-                writediff.clear();
                 int index((x_scroll_offset + pos.x())/note_size);
-                writediff[index] = mouseSound(pos.y()) - f0.getData((x_scroll_offset + pos.x())/note_size) + (writediff.keys().contains(index) ? writediff[index] : 0.0);
-                f0.setData((x_scroll_offset + pos.x())/note_size, mouseSound(pos.y()));
+                if(!writepast.contains(index)) writepast[index] = f0.getData(index);
+                writed[index] = mouseSound(pos.y());
+                f0.setData(index, mouseSound(pos.y()));
             }
             break;
         default:
@@ -300,14 +302,20 @@ void PitchEditor::mouseReleaseEvent(QMouseEvent *ev)
             break;
         case eMouseMode::Write:{
                 int index((x_scroll_offset + pos.x())/note_size);
-                writediff[index] = mouseSound(pos.y()) - f0.getData((x_scroll_offset + pos.x())/note_size) + (writediff.keys().contains(index) ? writediff[index] : 0.0);
+                if(!writepast.contains(index)) writepast[index] = f0.getData(index);
+                writed[index] = mouseSound(pos.y());
                 QBitArray tmp(f0.getDataSize(), false);
-                QList<double> diffs;
-                for(auto it = writediff.begin(); it != writediff.end(); it++) {
+                QList<Note> now, pasts;
+                auto it2(writepast.begin());
+                for(auto it = writed.begin(); it != writed.end() && it2 != writepast.end(); it++) {
                     tmp.setBit(it.key(), true);
-                    diffs.append(it.value());
+                    now.append(it.value());
+                    pasts.append(it2.value());
+                    it2++;
                 }
-                modlog.pushWriteLog(tmp, diffs);
+                modlog.pushWriteLog(tmp, now, pasts);
+                writed.clear();
+                writepast.clear();
             }
             break;
         default:
@@ -446,7 +454,7 @@ void PitchEditor::set_y_scroll_offset(int y)
 
 double PitchEditor::get_x_zoom() const
 {
-    return note_size * 10.0;
+    return std::log(note_size)/std::log(1.1);
 }
 
 int PitchEditor::get_y_zoom() const
@@ -456,7 +464,7 @@ int PitchEditor::get_y_zoom() const
 
 void PitchEditor::set_x_zoom(double x)
 {
-    x /= 10;
+    x = std::pow(1.1, x);
     if(0.01 <= x && x <= 100.0) {
         emit scrolleds(x_scroll_offset, y_scroll_offset);
         note_size = x;
@@ -703,9 +711,12 @@ QString PitchEditor::ModLog::getActionName() const
     QString ret;
     for(int i = data.size()-1; i >= 0; i--) {
         switch(data.at(i).action) {
-        case eAction::PitchShift:
-            ret += tr("%1個のピッチシフト%2").arg(data.at(index).diffs.size()).arg(index == i ? "←" : "");
+        case eAction::PitchShift:{
+            int s(0);
+            for(int i = 0; i < data.at(i).target.size(); i++) if(data.at(i).target.testBit(i)) s++;
+            ret += tr("%1個のピッチシフト%2").arg(s).arg(index == i ? "←" : "");
             break;
+        }
         case eAction::PitchDel:
             ret += tr("%1個のピッチの削除%2").arg(data.at(index).pasts.size()).arg(index == i ? "←" : "");
             break;
@@ -735,7 +746,7 @@ void PitchEditor::ModLog::pushShiftLog(QBitArray &target, double diff)
     Data d;
     d.action = eAction::PitchShift;
     d.target = target;
-    d.diffs.append(diff);
+    d.diff = diff;
     data.append(std::move(d));
     index++;
     if(index >= 100) {
@@ -744,7 +755,7 @@ void PitchEditor::ModLog::pushShiftLog(QBitArray &target, double diff)
     }
 }
 
-void PitchEditor::ModLog::pushWriteLog(QBitArray &target, QList<double> &diffs)
+void PitchEditor::ModLog::pushWriteLog(QBitArray &target, QList<Note> &now, QList<Note> &pasts)
 {
     //何かしらUndoされたあとのpushLog
     if(index < data.size()) {
@@ -754,8 +765,9 @@ void PitchEditor::ModLog::pushWriteLog(QBitArray &target, QList<double> &diffs)
     Data d;
     d.action = eAction::PitchMod;
     d.target = target;
-    if(diffs.empty()) return;
-    d.diffs.append(std::move(diffs));
+    if(now.empty() || pasts.empty()) return;
+    d.now.append(std::move(now));
+    d.pasts.append(std::move(pasts));
     data.append(std::move(d));
     index++;
     if(index >= 100) {
@@ -790,9 +802,8 @@ void PitchEditor::ModLog::undo(F0 &f0)
 
     Data d(data.takeAt(index-1));
     switch(d.action) {
-    case eAction::PitchShift:
-        if(d.diffs.size() == 1) {
-            double diff(d.diffs.at(0));
+    case eAction::PitchShift:{
+            double diff(d.diff);
             for(int i = 0; i < f0.getDataSize(); i++) {
                 if(!d.target.testBit(i)) continue;
 
@@ -802,13 +813,13 @@ void PitchEditor::ModLog::undo(F0 &f0)
         }
         break;
     case eAction::PitchMod:
-        if(d.diffs.size() > 0) {
-            auto &diffs(d.diffs);
+        if(d.pasts.size() > 0) {
+            auto &pasts(d.pasts);
             int j(0);
             for(int i = 0; i < f0.getDataSize(); i++) {
                 if(!d.target.testBit(i)) continue;
 
-                f0.setData(i, f0.getData(i) - diffs.at(j++));
+                f0.setData(i, pasts.at(j++));
             }
             index--;
         }
@@ -834,9 +845,8 @@ void PitchEditor::ModLog::redo(F0 &f0)
 
     Data d(data.takeAt(index));
     switch(d.action) {
-    case eAction::PitchShift:
-        if(d.diffs.size() == 1) {
-            double diff(d.diffs.at(0));
+    case eAction::PitchShift:{
+            double diff(d.diff);
             for(int i = 0; i < f0.getDataSize(); i++) {
                 if(!d.target.testBit(i)) continue;
 
@@ -846,21 +856,19 @@ void PitchEditor::ModLog::redo(F0 &f0)
         }
         break;
     case eAction::PitchMod:
-        if(d.diffs.size() > 0) {
-            auto &diffs(d.diffs);
+        if(d.now.size() > 0) {
+            auto &now(d.now);
             int j(0);
             for(int i = 0; i < f0.getDataSize(); i++) {
                 if(!d.target.testBit(i)) continue;
 
-                f0.setData(i, f0.getData(i) + diffs.at(j++));
+                f0.setData(i, now.at(j++));
             }
             index++;
         }
         break;
     case eAction::PitchDel:
         if(d.pasts.size() > 0) {
-            auto &pasts(d.pasts);
-            int j(0);
             for(int i = 0; i < f0.getDataSize(); i++) {
                 if(!d.target.testBit(i)) continue;
 

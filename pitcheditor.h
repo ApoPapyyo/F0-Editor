@@ -79,7 +79,8 @@ private:
         struct Data {
             eAction action;
             QBitArray target;
-            QList<double> diffs;
+            double diff;
+            QList<Note> now;
             QList<Note> pasts;
         };
         int index;
@@ -89,7 +90,7 @@ private:
         ~ModLog();
         QString getActionName() const;
         void pushShiftLog(QBitArray &target, double diff);
-        void pushWriteLog(QBitArray &target, QList<double> &diffs);
+        void pushWriteLog(QBitArray &target, QList<Note> &now, QList<Note> &pasts);
         void pushEraseLog(QBitArray &target, QList<Note> &pasts);
         void undo(F0 &f0);
         void redo(F0 &f0);
@@ -125,7 +126,7 @@ private:
     int sel;
     bool lclick;
     double dragdiff;
-    QMap<int,double> writediff;
+    QMap<int,Note> writed, writepast;
     static const int oct_max;
 signals:
     void mouseMoved(const QString &info);
