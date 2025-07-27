@@ -8,6 +8,7 @@
 #include <QGestureEvent>
 #include <QBitArray>
 #include <QMap>
+#include "synth.h"
 
 
 class Piano;
@@ -127,6 +128,11 @@ private:
     bool lclick;
     double dragdiff;
     QMap<int,Note> writed, writepast;
+    Synth synth;
+    QList<double> cache;
+    bool changed;
+    int pcursor;
+    bool follow_pcursor;
     static const int oct_max;
 signals:
     void mouseMoved(const QString &info);
@@ -142,6 +148,10 @@ public slots:
     void closeEvent(QCloseEvent *ev);
     void redo();
     void undo();
+    void play();
+    void stop();
+    void temp_stop();
+    void play_cursor_update(int frame);
 
 };
 

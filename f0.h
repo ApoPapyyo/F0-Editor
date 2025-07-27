@@ -27,6 +27,7 @@ public:
     void setData(int i, Note d);
     void setData(int first, const QList<Note> &ds);
     void setData(const QList<int> index, Note data);
+    QList<double> getFreq(const double A4 = 440.0) const;
 private:
     QFileInfo _path;
     QList<Note> _data;

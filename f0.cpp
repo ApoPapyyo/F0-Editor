@@ -252,3 +252,13 @@ QString F0::getFileName() const
     if(_data.empty()) return "";
     return _path.fileName();
 }
+
+QList<double> F0::getFreq(const double A4) const
+{
+    if(_data.empty()) return QList<double>();
+    QList<double> ret;
+    for(auto n: _data) {
+        ret.append(n.toHz(A4));
+    }
+    return std::move(ret);
+}

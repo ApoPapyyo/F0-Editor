@@ -29,6 +29,8 @@ MainWindow::MainWindow(QWidget *parent)
     connect(ui->action_undo, &QAction::triggered, editor->get_pe(), &PitchEditor::undo);
     connect(ui->action_redo, &QAction::triggered, editor->get_pe(), &PitchEditor::redo);
     connect(editor->get_pe(), &PitchEditor::undo_redo_tgl, this, &MainWindow::undo_redo_tgl);
+    connect(ui->play_button, &QPushButton::pressed, editor->get_pe(), &PitchEditor::play);
+    connect(ui->stop_button, &QPushButton::pressed, editor->get_pe(), &PitchEditor::stop);
 }
 
 MainWindow::~MainWindow()

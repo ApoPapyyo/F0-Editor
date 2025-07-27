@@ -1,4 +1,4 @@
-QT       += core gui
+QT       += core gui multimedia
 
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 
@@ -16,7 +16,8 @@ SOURCES += \
     midieditor.cpp \
     piano.cpp \
     pitcheditor.cpp \
-    synth.cpp
+    synth.cpp \
+    wavegenerator.cpp
 
 HEADERS += \
     f0.h \
@@ -25,7 +26,8 @@ HEADERS += \
     midieditor.h \
     piano.h \
     pitcheditor.h \
-    synth.h
+    synth.h \
+    wavegenerator.h
 
 FORMS += \
     mainwindow.ui
