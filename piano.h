@@ -1,6 +1,6 @@
 #ifndef PIANO_H
 #define PIANO_H
-#include "midi.h"
+#include "note.h"
 #include <QWidget>
 #include "pitcheditor.h"
 #include "synth.h"

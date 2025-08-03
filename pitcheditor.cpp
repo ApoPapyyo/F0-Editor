@@ -21,11 +21,11 @@ PitchEditor::PitchEditor(QWidget *parent)
     : QWidget{parent}
     , piano_keyboard_width(20)
     , note_size(1.0)
-    , now(Note(Note::C, 0.0, 4))
+    , now(Note(Note::eNoteName::C, 4, 0.0))
     , centrex(0)
-    , centrey(Note(Note::C, 0.0, 4))
+    , centrey(Note(Note::eNoteName::C, 4, 0.0))
     , x_scroll_offset(0)
-    , y_scroll_offset((Note(Note::B, 0.0, 8)-centrey)*piano_keyboard_width)
+    , y_scroll_offset((Note(Note::eNoteName::B, 8, 0.0)-centrey)*piano_keyboard_width)
     , init(false)
     , f0()
     , mode(eMouseMode::Select)
@@ -176,7 +176,7 @@ Note PitchEditor::mouseSound(QPoint p) const
     int y(y_scroll_offset+p.y()-piano_keyboard_width/2);
     double y_ = static_cast<double>(y)/piano_keyboard_width;
     y_ = 12*oct_max - y_;
-    return Note(Note::B, y_, 0);
+    return Note(Note::eNoteName::B, 0, y_*100);
 }
 
 Note PitchEditor::mouseSound(int p) const
@@ -184,7 +184,7 @@ Note PitchEditor::mouseSound(int p) const
     int y(y_scroll_offset+p-piano_keyboard_width/2);
     double y_ = static_cast<double>(y)/piano_keyboard_width;
     y_ = 12*oct_max - y_;
-    return Note(Note::B, y_, 0);
+    return Note(Note::eNoteName::B, 0, y_*100);
 }
 
 Note PitchEditor::pos2sound(QPoint p) const
@@ -192,7 +192,7 @@ Note PitchEditor::pos2sound(QPoint p) const
     int y(p.y() - piano_keyboard_width/2);
     double y_ = static_cast<double>(y)/piano_keyboard_width;
     y_ = 12*oct_max - y_;
-    return Note(Note::B, y_, 0);
+    return Note(Note::eNoteName::B, 0, y_*100);
 }
 
 Note PitchEditor::pos2sound(int p) const
@@ -200,7 +200,7 @@ Note PitchEditor::pos2sound(int p) const
     int y(p - piano_keyboard_width/2);
     double y_ = static_cast<double>(y)/piano_keyboard_width;
     y_ = 12*oct_max - y_;
-    return Note(Note::B, y_, 0);
+    return Note(Note::eNoteName::B, 0, y_*100);
 }
 
 
@@ -237,7 +237,7 @@ void PitchEditor::mouseMoveEvent(QMouseEvent *ev)
             }
         }
     }
-    emit mouseMoved(tr("%1Hzは%2(%3セント). A4=440Hzとした%2は%4Hz. C0との音程は%5.").arg(now.toHz()).arg(now.toStr()).arg(now.getCent()*100).arg(Note(now.getName(), 0.0, now.getOct()).toHz()).arg(now-Note(Note::C, 0.0, 0)));
+    emit mouseMoved(tr("%1Hzは%2(%3セント). A4=440Hzとした%2は%4Hz. C0との音程は%5.").arg(now.toHz()).arg(now.toStr()).arg(now.getCent()).arg(Note(now.getName(), now.getOct(), 0.0).toHz()).arg(now-Note(Note::eNoteName::C, 0, 0.0)));
     emit undo_redo_tgl(modlog.undo_able(), modlog.redo_able());
     update();
 }
@@ -430,7 +430,7 @@ int PitchEditor::soundPosition(Note n)
     if(n == Note()) {
         return -1;
     }
-    double iv_(Note(Note::B, 0.0, oct_max) - n);
+    double iv_(Note(Note::eNoteName::B, oct_max, oct_max) - n);
     iv_ *= piano_keyboard_width;
     int iv(std::round(iv_)-y_scroll_offset+piano_keyboard_width/2);
     return iv;

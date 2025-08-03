@@ -1,6 +1,6 @@
 #ifndef PITCHEDITOR_H
 #define PITCHEDITOR_H
-#include "midi.h"
+#include "note.h"
 #include "f0.h"
 #include <QWidget>
 #include <QPainter>

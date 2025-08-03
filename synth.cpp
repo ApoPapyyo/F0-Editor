@@ -187,6 +187,7 @@ void AudioGenerator::setCurrentFreq(double freq)
 
 qint64 AudioGenerator::readData(char* data, qint64 maxlen)
 {
+    qDebug() << "readData called, len =" << maxlen;
     QMutexLocker locker(&m_mutex);
     
     if (!m_isPlaying && !m_isTonePlaying) {

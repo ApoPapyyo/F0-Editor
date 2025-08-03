@@ -5,8 +5,8 @@
 #include <QString>
 #include <QFileInfo>
 #include <QList>
-#include <stdint.h>
-#include "midi.h"
+#include <cstdint>
+#include "note.h"
 
 class F0
 {
