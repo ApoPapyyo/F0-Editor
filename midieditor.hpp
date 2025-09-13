@@ -7,8 +7,8 @@
 #include <QGridLayout>
 #include <QScrollBar>
 #include <QSplitter>
-#include "pitcheditor.h"
-#include "piano.h"
+#include "pitcheditor.hpp"
+#include "piano.hpp"
 
 class MidiEditor : public QWidget
 {
@@ -17,6 +17,7 @@ public:
     explicit MidiEditor(QWidget *parent = nullptr);
     ~MidiEditor();
     PitchEditor *get_pe() const;
+    Piano *get_piano() const;
 protected:
     void wheelEvent(QWheelEvent *ev);
     void paintEvent(QPaintEvent *ev);

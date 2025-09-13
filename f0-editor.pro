@@ -19,12 +19,12 @@ SOURCES += \
     synth.cpp
 
 HEADERS += \
-    f0.h \
-    mainwindow.h \
-    midieditor.h \
-    note.h \
-    piano.h \
-    pitcheditor.h \
+    f0.hpp \
+    mainwindow.hpp \
+    midieditor.hpp \
+    note.hpp \
+    piano.hpp \
+    pitcheditor.hpp \
     synth.h
 
 FORMS += \

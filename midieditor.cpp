@@ -1,14 +1,17 @@
-#include "midieditor.h"
+#include "midieditor.hpp"
+#include <QWheelEvent>
 #include <cmath>
+#include <iostream>
 
 const int bar2val = 10;
+
 
 MidiEditor::MidiEditor(QWidget *parent)
     : QWidget{parent}
     , _lay(new QGridLayout(this))
     , _sp(new QSplitter(Qt::Horizontal, this))
     , _pe(new PitchEditor(this))
-    , _piano(new Piano(_pe, this))
+    , _piano(new Piano(_pe->offset, _pe->scale, _pe->conf, this))
     , _scrx(new QScrollBar(Qt::Horizontal, this))
     , _scry(new QScrollBar(Qt::Vertical, this))
     , x_zoom_offset(1)
@@ -24,9 +27,8 @@ MidiEditor::MidiEditor(QWidget *parent)
     _lay->addWidget(_sp, 0, 0, 1, 1);
     _lay->addWidget(_scry, 0, 1, 1, 1);
     _lay->addWidget(_scrx, 1, 0, 1, 1);
-    _scrx->setRange(0, _pe->get_x_scroll_max()/bar2val);
-    _scry->setRange(0, _pe->get_y_scroll_max()/bar2val);
-    connect(_pe, &PitchEditor::scrolleds, _piano, &Piano::scrolled);
+    _scrx->setRange(0, _pe->getScrollMax().x/bar2val);
+    _scry->setRange(0, _pe->getScrollMax().y/bar2val);
     connect(_scrx, &QScrollBar::sliderMoved, this, &MidiEditor::scrollEventX);
     connect(_scry, &QScrollBar::sliderMoved, this, &MidiEditor::scrollEventY);
 }
@@ -50,43 +52,49 @@ void MidiEditor::wheelEvent(QWheelEvent *ev)
         scrx = scry;
         scry = tmp;
     }
-    int sx(scrx / std::abs(scrx)), sy(scry / std::abs(scry));
-    double lx(std::log(std::abs(scrx)) * sx), ly(std::log2(std::abs(scry)) * sy);
     if (mods & Qt::ControlModifier) {
-        _pe->set_x_zoom(_pe->get_x_zoom() - scrx/10);
-        _pe->set_y_zoom(_pe->get_y_zoom() - scry/10);
-        _scrx->setRange(0, _pe->get_x_scroll_max()/bar2val);
-        _scry->setRange(0, _pe->get_y_scroll_max()/bar2val);
-        _scrx->setValue(_pe->get_x_scroll_offset()/10);
-        _scry->setValue(_pe->get_y_scroll_offset()/10);
+        _pe->addScale(-scrx/120,-scry/10);
+        _scrx->setRange(0, _pe->getScrollMax().x/bar2val);
+        _scry->setRange(0, _pe->getScrollMax().y/bar2val);
+        _scrx->setValue(_pe->offset.x/10);
+        _scry->setValue(_pe->offset.y/10);
     } else {
-        _pe->set_x_scroll_offset(_pe->get_x_scroll_offset() - scrx/10);
-        _pe->set_y_scroll_offset(_pe->get_y_scroll_offset() - scry/10);
-        _scrx->setValue(_pe->get_x_scroll_offset()/10);
-        _scry->setValue(_pe->get_y_scroll_offset()/10);
+        _pe->addScrollOffset(-scrx, -scry);
+        _scrx->setValue(_pe->offset.x/10);
+        _scry->setValue(_pe->offset.y/10);
     }
+    _piano->update();
+    _pe->update();
     ev->accept();
 }
 
 void MidiEditor::paintEvent(QPaintEvent *ev)
 {
-    _scrx->setRange(0, _pe->get_x_scroll_max()/bar2val);
-    _scry->setRange(0, _pe->get_y_scroll_max()/bar2val);
-    _scrx->setValue(_pe->get_x_scroll_offset()/bar2val);
-    _scry->setValue(_pe->get_y_scroll_offset()/bar2val);
+    _scrx->setRange(0, _pe->getScrollMax().x/bar2val);
+    _scry->setRange(0, _pe->getScrollMax().y/bar2val);
+    _scrx->setValue(_pe->offset.x/bar2val);
+    _scry->setValue(_pe->offset.y/bar2val);
 }
 
 void MidiEditor::scrollEventX(int x)
 {
-    _pe->set_x_scroll_offset(x*bar2val);
+    _pe->setScrollOffset(x*bar2val, _pe->offset.y);
+    _pe->update();
 }
 
 void MidiEditor::scrollEventY(int y)
 {
-    _pe->set_y_scroll_offset(y*bar2val);
+    _pe->setScrollOffset(_pe->offset.x, y*bar2val);
+    _piano->update();
+    _pe->update();
 }
 
 PitchEditor *MidiEditor::get_pe() const
 {
     return _pe;
+}
+
+Piano *MidiEditor::get_piano() const
+{
+    return _piano;
 }

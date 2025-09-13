@@ -3,8 +3,8 @@
 
 #include <QMainWindow>
 #include <QSplitter>
-#include "midieditor.h"
-#include "pitcheditor.h"
+#include "midieditor.hpp"
+#include "pitcheditor.old.hpp"
 QT_BEGIN_NAMESPACE
 namespace Ui {
 class MainWindow;
@@ -33,5 +33,10 @@ private slots:
     void on_erase_tool_toggled(bool checked);
     void on_write_tool_toggled(bool checked);
     void undo_redo_tgl(bool undo, bool redo);
+
+    void on_action_open_f0();
+    void on_action_close_f0();
+    void on_action_save_f0();
+    void on_action_save_f0_as();
 };
 #endif // MAINWINDOW_H

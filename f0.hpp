@@ -6,14 +6,14 @@
 #include <QFileInfo>
 #include <QList>
 #include <cstdint>
-#include "note.h"
+#include <QObject>
+#include <QWidget>
+#include "note.hpp"
 
 class F0
 {
 public:
-    F0();
-    F0(QFileInfo &path);
-    ~F0();
+    F0(QWidget* parent);
     int openF0(QFileInfo &path);
     void closeF0();
     int saveF0();
@@ -31,8 +31,10 @@ public:
 private:
     QFileInfo _path;
     QList<Note> _data;
+    QList<double> _cache;
     int _fps;
     bool _changed;
+    QWidget* _parent;
 };
 
 #endif // F__H

@@ -5,7 +5,9 @@
 #include <sstream>
 #include <iomanip>
 #include <vector>
-#include "note.h"
+#include "note.hpp"
+
+//-INFINITY: 無音(0Hz)
 
 Note::Note()
     : _interval(-INFINITY)
@@ -20,8 +22,7 @@ Note::Note(eNoteName n, int o, double c)
 {
     c /= 100.0;
     if(n == eNoteName::None || c == -INFINITY || c == INFINITY) return;
-    _interval = static_cast<int>(n) - 1;
-    _interval += (o + 1)*12;
+    _interval = (o - 4) * 12 + static_cast<int>(n) - 10;
     _interval += c;
 }
 
@@ -75,20 +76,20 @@ Note Note::fromStr(const string str)
     if(!pc.empty()) {
         p = stod(pc);
     }
-    double interval(12*(stoi(oc)+1) + ss + p/100.0);
-    int tmp(name - 'c');
-    if(tmp == -2) {
-        tmp = 9;
-    } else if(tmp == -1) {
-        tmp = 11;
-    } else if(tmp == 1) {
+    double interval(p/100.0 + 12*(stoi(oc)-4) + ss);
+    int tmp(name - 'a');
+    if(tmp == 1) {//b
         tmp = 2;
-    } else if(tmp == 2) {
-        tmp = 4;
-    } else if(tmp == 3) {
-        tmp = 5;
-    } else if(tmp == 4) {
-        tmp = 7;
+    } else if(tmp == 2) {//c
+        tmp = -9;
+    } else if(tmp == 3) {//d
+        tmp = -7;
+    } else if(tmp == 4) {//e
+        tmp = -5;
+    } else if(tmp == 5) {//f
+        tmp = -4;
+    } else if(tmp == 6) {//g
+        tmp = -2;
     }
     interval += tmp;
     Note ret;
@@ -152,11 +153,7 @@ string Note::toStr(bool showCents, int precision) const
 double Note::toHz(const double A4) const
 {
     if (_interval == -INFINITY) return 0.0;
-    int oct(static_cast<int>(_interval)/12 - 5);
-    int name(static_cast<int>(_interval)%12 - 9);
-    double _cent(_interval - static_cast<int>(_interval));
-    double sound(oct*12 + _cent+name);
-    return std::pow(2.0, sound/12.0)*A4;
+    return std::pow(2.0, _interval/12.0)*A4;
 }
 // 2^(x/12) = s
 // x/12 = log2(s)
@@ -166,120 +163,34 @@ Note Note::fromHz(const double f, const double A4)
 {
     if (f <= 0.0 || A4 <= 0.0) return Note();
     double s(f/A4);
-    double pitch(12.0*std::log2(s));
-    pitch += 69.0;
     Note ret;
-    ret._interval = pitch;
+    ret._interval = 12.0*std::log2(s);
     return ret;
-}
-
-/*
-interval: 4.3
-interpoint: 0.3
-ref: 4.0
-range: 3.5 < interval <= 4.5
-cent: 0.3
-
-interval: 3.7
-interpoint: 0.7
-ref: 4.0
-range: 3.5 < interval <= 4.5
-cent: -0.3
-
-interval: -0.2
-interval+: 1.0 + interval = 0.8
-_cent: 0.8 → -0.2
-ref: 0.0
-range: -0.5 < interval <= 0.5
-intervalpoint: -0.2
-cent: -0.2
-
-interval: -0.5
-interval+: 1.0 + interval = 0.5
-_cent: 0.5
-ref: -1.0
-range: -1.5 < interval <= -0.5
-intervalpoint: -0.5
-cent: 0.5
-
-interval: -0.6
-interval+: 1.0 + interval = 0.4
-_cent: 0.4
-ref: -1.0
-cent: 0.4
-
-interval: -1.2
-interval+: 1.0 + interval = -0.2
-_cent: -0.2
-ref: -1.0
-cent: -0.2
-
-interval: -1.5
-interval+: 1.0 + interval = -0.5
-_cent: -0.5 → 0.5
-ref: -2.0
-cent: 0.5
-
-interval: -10.3
-interval+: 1.0 + interval = -9.3
-_cent: -0.3
-ref: -10
-cent: -0.3
-
-interval: -10.5
-interval+: 1.0 + interval = -9.5
-_cent: -0.5 → 0.5
-ref: -11
-cent: 0.5
-*/
-
-double Note::get_cent(double interval)
-{
-    double iv(interval);
-    if(iv < 0.0) {
-        iv += 1.0;
-    }
-    double _cent(iv - static_cast<int>(iv));
-    return _cent;
-}
-
-int Note::get_ref(double interval)
-{
-    double _cent(get_cent(interval));
-    if(_cent > 0.5 && interval >= 0.0) {
-        return static_cast<int>(interval) + 1;
-    } else if(_cent <= -0.5 && interval < 0.0){
-        return static_cast<int>(interval) - 1;
-    }
-    return static_cast<int>(interval);
 }
 
 Note::eNoteName Note::getName() const
 {
-    if (_interval == -INFINITY) return eNoteName::None;
-    int r(get_ref(_interval));
-    while(r < 0.0) r += 12;
-    int tmp(r%12 + 1);
-    return static_cast<eNoteName>(tmp);
+    if(_interval == -INFINITY) return eNoteName::None;
+    double i = _interval;
+    while(i < 0) i+=12.0;
+    i = round(i) + 9;
+    return static_cast<eNoteName>(static_cast<int>(i)%12 + 1);
 }
 
 double Note::getCent() const
 {
-    if (_interval == -INFINITY) return 0.0;
-    double _cent(get_cent(_interval));
-    if(_cent > 0.5) {
-        _cent -= 1.0;
-    } else if(_cent <= -0.5) {
-        _cent += 1.0;
-    }
-    return _cent*100;
+    if(_interval == -INFINITY) return -INFINITY;
+    double i = _interval;
+    while(i < 0) i+=12.0;
+    double r = round(i);
+    return (i - r)*100;
 }
 
 int Note::getOct() const
 {
-    if (_interval == -INFINITY) return 0;
-    int r(get_ref(_interval));
-    return r >= 0.0 ? r/12 - 1 : (r + 1)/12 - 2;
+    if(_interval == -INFINITY) return 0;
+    double o = (_interval + 58 - static_cast<int>(getName()) - getCent()/100.0)/12.0;
+    return static_cast<int>(round(o));
 }
 
 double operator-(const Note &_a, const Note &_b)

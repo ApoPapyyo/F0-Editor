@@ -21,9 +21,7 @@ public:
         B
     };
 private:
-    double _interval;//C-1から数えて
-    static double get_cent(double interval);
-    static int get_ref(double interval);
+    double _interval;//A4から数えて
 public:
     Note();
     Note(const Note &org);

@@ -1,46 +1,31 @@
-#include "f0.h"
+#include "f0.hpp"
 #include <QDebug>
 #include <QMessageBox>
-#include <QObject>
+
 #include <QTextStream>
 #include <QMap>
-F0::F0()
+F0::F0(QWidget* parent)
     : _path()
     , _data()
     , _fps(0)
     , _changed(false)
+    , _parent(parent)
 {}
-
-F0::F0(QFileInfo &path)
-    : _path()
-    , _data()
-    , _fps(0)
-    , _changed(false)
-{
-    openF0(path);
-}
-
-F0::~F0()
-{
-    if (!_data.empty()) {
-        _data.clear();
-    }
-}
 
 int F0::openF0(QFileInfo &path)
 {
     if (!_data.empty()) {
-        QMessageBox::critical(nullptr, QObject::tr("エラー"), QObject::tr("既にデータが読み込まれています"));
+        QMessageBox::critical(_parent, QObject::tr("エラー"), QObject::tr("既にデータが読み込まれています"));
         return 1;
     }
     if (!path.exists() || !path.isFile()) {
-        QMessageBox::critical(nullptr, QObject::tr("エラー"), QObject::tr("%1というファイルは存在しません。").arg(path.filePath()));
+        QMessageBox::critical(_parent, QObject::tr("エラー"), QObject::tr("%1というファイルは存在しません。").arg(path.filePath()));
         return 1;
     }
     if (path.suffix().toLower() == "csv") {
         QFile file(path.filePath());
         if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
-            QMessageBox::critical(nullptr, QObject::tr("エラー"), QObject::tr("%1が開けませんでした。").arg(path.filePath()));
+            QMessageBox::critical(_parent, QObject::tr("エラー"), QObject::tr("%1が開けませんでした。").arg(path.filePath()));
             return 1;
         }
         QTextStream in(&file);
@@ -65,7 +50,7 @@ int F0::openF0(QFileInfo &path)
     } else if (path.suffix().toLower() == "f0") {
         QFile file(path.filePath());
         if (!file.open(QIODevice::ReadOnly | QIODevice::Unbuffered)) {
-            QMessageBox::critical(nullptr, QObject::tr("エラー"), QObject::tr("%1が開けませんでした。").arg(path.filePath()));
+            QMessageBox::critical(_parent, QObject::tr("エラー"), QObject::tr("%1が開けませんでした。").arg(path.filePath()));
             return 1;
         }
         while (!file.atEnd()) {
@@ -88,7 +73,7 @@ int F0::openF0(QFileInfo &path)
         file.close();
         _fps = 200;
     } else {
-        QMessageBox::critical(nullptr, QObject::tr("エラー"), QObject::tr("%1はサポートされていません。").arg(path.suffix()));
+        QMessageBox::critical(_parent, QObject::tr("エラー"), QObject::tr("%1はサポートされていません。").arg(path.suffix()));
         return 1;
     }
     _path = path;
@@ -102,14 +87,14 @@ int F0::getDataSize() const
 
 Note F0::getData(int i) const
 {
-    if(0 < i && i < _data.size()) return _data.at(i);
+    if(0 < i && i < _data.size()) return _data[i];
     return Note();
 }
 
 QList<Note> F0::getData(int first, int size) const
 {
     QList<Note> ret(size);
-    for(int i(0); i+first < _data.size() && i < size; i++) ret.append(_data.at(i+first));
+    for(int i(0); i+first < _data.size() && i < size; i++) ret.append(_data[i+first]);
     return ret;
 }
 
@@ -132,7 +117,14 @@ void F0::closeF0()
     if(_data.empty()) {
         return;
     } else {
+        if(_changed) {
+            auto rp = QMessageBox::question(_parent, QObject::tr("確認"), QObject::tr("データが変更されています。閉じる前に保存しますか？"), QMessageBox::Yes | QMessageBox::No, QMessageBox::Yes);
+            if(rp == QMessageBox::Yes) {
+                saveF0();
+            }
+        }
         _data.clear();
+        _cache.clear();
     }
     _changed = false;
 }
@@ -148,7 +140,7 @@ int F0::saveF0()
     if(_path.suffix().toLower() == "csv") {
         QFile file(_path.filePath());
         if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
-            QMessageBox::critical(nullptr, QObject::tr("エラー"), QObject::tr("%1が開けませんでした。").arg(_path.filePath()));
+            QMessageBox::critical(_parent, QObject::tr("エラー"), QObject::tr("%1が開けませんでした。").arg(_path.filePath()));
             return 1;
         }
         QTextStream out(&file);
@@ -164,7 +156,7 @@ int F0::saveF0()
     } else if(_path.suffix().toLower() == "f0") {
         QFile file(_path.filePath());
         if (!file.open(QIODevice::WriteOnly | QIODevice::Unbuffered)) {
-            QMessageBox::critical(nullptr, QObject::tr("エラー"), QObject::tr("%1が開けませんでした。").arg(_path.filePath()));
+            QMessageBox::critical(_parent, QObject::tr("エラー"), QObject::tr("%1が開けませんでした。").arg(_path.filePath()));
             return 1;
         }
         float ave(_data.at(0).toHz());
@@ -197,7 +189,7 @@ int F0::saveF0as(QFileInfo &path)
     if(path.suffix().toLower() == "csv") {
         QFile file(path.filePath());
         if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
-            QMessageBox::critical(nullptr, QObject::tr("エラー"), QObject::tr("%1が開けませんでした。").arg(_path.filePath()));
+            QMessageBox::critical(_parent, QObject::tr("エラー"), QObject::tr("%1が開けませんでした。").arg(_path.filePath()));
             return 1;
         }
         QTextStream out(&file);
@@ -214,7 +206,7 @@ int F0::saveF0as(QFileInfo &path)
     } else if(path.suffix().toLower() == "f0") {
         QFile file(path.filePath());
         if (!file.open(QIODevice::WriteOnly | QIODevice::Unbuffered)) {
-            QMessageBox::critical(nullptr, QObject::tr("エラー"), QObject::tr("%1が開けませんでした。").arg(_path.filePath()));
+            QMessageBox::critical(_parent, QObject::tr("エラー"), QObject::tr("%1が開けませんでした。").arg(_path.filePath()));
             return 1;
         }
         float ave(_data.at(0).toHz());
@@ -260,5 +252,5 @@ QList<double> F0::getFreq(const double A4) const
     for(auto n: _data) {
         ret.append(n.toHz(A4));
     }
-    return std::move(ret);
+    return ret;
 }
