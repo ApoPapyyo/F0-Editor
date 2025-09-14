@@ -7,7 +7,7 @@
 #include <QBitArray>
 #include <QMap>
 #include <QPoint>
-#include "synth.h"
+#include "synth.hpp"
 
 class PitchEditor : public QWidget
 {
@@ -104,6 +104,10 @@ public:
         double A4;
         ScaleConfig scale;
     };
+    struct Player {
+        Synth synth;
+        qsizetype cur;
+    };
 
     bool init;
 
@@ -112,6 +116,7 @@ public:
     Mouse mouse;
     OprLog log;
     Config conf;
+    Player player;
 
     Offset getScrollMax() const;
     Scale getScaleMax() const;

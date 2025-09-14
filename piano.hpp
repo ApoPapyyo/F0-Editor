@@ -3,6 +3,7 @@
 #include <QWidget>
 #include "note.hpp"
 #include "pitcheditor.hpp"
+#include "synth.hpp"
 
 class Piano : public QWidget
 {
@@ -16,11 +17,12 @@ protected:
     void mouseReleaseEvent(QMouseEvent* ev) override;
 private:
     struct {Note pos; bool click = false;} cursor;
+    Synth synth;
     const PitchEditor::Offset& offset;
     const PitchEditor::Scale& scale;
     const PitchEditor::Config& conf;
-signals:
     void freq_changed(double f);
+signals:
     void update_statusbar(const QString& str);
 };
 

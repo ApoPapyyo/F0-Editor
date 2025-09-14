@@ -10,6 +10,7 @@ const int piano_black_structure[12] = {0, 1, 0, 3, 0, 0, 1, 0, 2, 0, 3, 0};
 Piano::Piano(const PitchEditor::Offset& offset_, const PitchEditor::Scale& scale_, const PitchEditor::Config& conf_, QWidget* parent)
     : QWidget{parent}
     , cursor()
+    , synth(44100)
     , offset(offset_)
     , scale(scale_)
     , conf(conf_)
@@ -100,7 +101,7 @@ void Piano::mouseMoveEvent(QMouseEvent*)
     cursor.pos = Note(Note::eNoteName::C, conf.oct_min, 0.0) + p;
     emit update_statusbar(cursor.pos.toStr().c_str());
     if(cursor.click) {
-        emit freq_changed(cursor.pos.toHz(conf.A4));
+        freq_changed(cursor.pos.toHz(conf.A4));
         update();
     }
 }
@@ -114,14 +115,23 @@ void Piano::mousePressEvent(QMouseEvent*)
     double p = 12.0 * oct_range - 0.5 - (double)(pos.y() + offset.y) / (double)scale.y;
     if(p < 0.0 || p >= oct_range*12) return;
     cursor.pos = Note(Note::eNoteName::C, conf.oct_min, 0.0) + p;
-    emit freq_changed(cursor.pos.toHz(conf.A4));
+    freq_changed(cursor.pos.toHz(conf.A4));
+    synth.play();
     update();
 }
 
 void Piano::mouseReleaseEvent(QMouseEvent*)
 {
     cursor.click = false;
-    emit freq_changed(0.0);
+    freq_changed(0.0);
+    synth.stop();
     update();
+}
+
+void Piano::freq_changed(double f)
+{
+    if(f > 0.0) {
+        synth.setFreq(f);
+    }
 }
 

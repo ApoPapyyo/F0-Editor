@@ -3,6 +3,8 @@
 #include <cmath>
 #include <QMouseEvent>
 
+#define SAMPLE_RATE 44100
+
 namespace {
 int countTrue(const QBitArray& b)
 {
@@ -21,10 +23,12 @@ PitchEditor::PitchEditor(QWidget* parent)
     , mouse{eMouseMode::Select, QPoint{0, 0}, false, false, false}
     , log{this}
     , conf{9, -1, 440.0, ScaleConfig{eScaleMode::Time, 0.0, 0.0}}
+    , player{Synth{SAMPLE_RATE}, 0}
 {
     setMouseTracking(true);
     setFocusPolicy(Qt::StrongFocus);
     grabGesture(Qt::PinchGesture);
+    player.synth.setCurVar(&player.cur);
 }
 
 int PitchEditor::notePos(const Note& n) const
@@ -110,6 +114,7 @@ void PitchEditor::paintEvent(QPaintEvent*)
     const QColor gray{150, 150, 150};
     const QColor red{255, 0, 0};
     const QColor blue{0, 0, 255};
+    const QColor green{0, 255, 0};
 
     const bool editable = scale.x >= 5.0;
 
@@ -187,6 +192,10 @@ void PitchEditor::paintEvent(QPaintEvent*)
     }
 
     //縦線
+    painter.setPen(green);
+    const qsizetype cur = player.cur * log.f0_data.getFPS() / SAMPLE_RATE;
+    painter.drawLine(curPos(cur), 0, curPos(cur), height());
+
     for(int i = 0; i < width(); i++) {
 
     }

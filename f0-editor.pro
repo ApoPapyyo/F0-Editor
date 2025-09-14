@@ -25,7 +25,7 @@ HEADERS += \
     note.hpp \
     piano.hpp \
     pitcheditor.hpp \
-    synth.h
+    synth.hpp
 
 FORMS += \
     mainwindow.ui
