@@ -94,7 +94,7 @@ void PitchEditor::setScale(double x, int y)
         if((double)width() / log.f0_data.getDataSize() <= x) scale.x = x;
         else scale.x = (double)width() / log.f0_data.getDataSize();
     }
-    if(0 < y && y <= getScaleMax().y) scale.y = y;
+    if(((double)height() / (double)((conf.oct_max - conf.oct_min + 1)*12.0)) <= y && y <= getScaleMax().y) scale.y = y;
 
     for(offset.y = 0; notePos(h) > height()/2; offset.y++);
     for(offset.x = 0; curPos(w) > pos.x(); offset.x++);
@@ -102,7 +102,7 @@ void PitchEditor::setScale(double x, int y)
 
 void PitchEditor::addScale(double x, int y)
 {
-    setScale(scale.x * pow(1.2, x), scale.y + y);
+    setScale(scale.x * pow(1.001, x), scale.y + y);
 }
 
 void PitchEditor::paintEvent(QPaintEvent*)

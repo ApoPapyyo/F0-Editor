@@ -4,7 +4,7 @@
 #include <QMainWindow>
 #include <QSplitter>
 #include "midieditor.hpp"
-#include "pitcheditor.old.hpp"
+#include "pitcheditor.hpp"
 QT_BEGIN_NAMESPACE
 namespace Ui {
 class MainWindow;

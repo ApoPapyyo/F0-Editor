@@ -53,7 +53,7 @@ void MidiEditor::wheelEvent(QWheelEvent *ev)
         scry = tmp;
     }
     if (mods & Qt::ControlModifier) {
-        _pe->addScale(-scrx/120,-scry/10);
+        _pe->addScale(-scrx,-scry/10);
         _scrx->setRange(0, _pe->getScrollMax().x/bar2val);
         _scry->setRange(0, _pe->getScrollMax().y/bar2val);
         _scrx->setValue(_pe->offset.x/10);
