@@ -94,8 +94,8 @@ qint64 Generator::readData(char* data, qint64 maxlen)
                 m_status.freq = 0.0;
                 m_status.phase = 0.0;
             }
-            *m_status.cur += size;
             memcpy(data, &m_status.data->data()[*m_status.cur], size);
+            *m_status.cur += size;
         } else {
             size = 0;
         }
