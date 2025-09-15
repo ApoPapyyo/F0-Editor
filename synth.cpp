@@ -108,7 +108,6 @@ QByteArray generateContinuousSine(double time_per_frame, const QVector<double>& 
     QByteArray audio(total_bytes, 0);
 
     Generator gen(fmt);
-
     for (int i = 0; i < f0_data.size(); ++i) {
         gen.setFreq(f0_data[i]);
         qint64 offset = i * frame_bytes;
@@ -129,16 +128,19 @@ Generator::Generator(QAudioFormat format, QObject* parent)
     , m_status{eContentType::None, nullptr, &m_cur_dummy, 0.0, 0.0}
 {
 
-    if(m_format.isValid()) open(QIODevice::ReadOnly);
-    if(sizeofFmt(m_format.sampleFormat()) == 0) {
+    if(!m_format.isValid() || sizeofFmt(m_format.sampleFormat()) == 0) {
         Error(tr("対応していないフォーマットです。:") << m_format);
         return;
+    } else {
+        qDebug() << "Opening " << m_format;
+        open(QIODevice::ReadOnly);
+        qDebug() << "Open " << (isOpen() ? "success." : "failed.");
     }
 }
 
 Generator::~Generator()
 {
-    if(m_format.isValid() && sizeofFmt(m_format.sampleFormat()) > 0) close();
+    if(isOpen()) close();
 }
 
 qint64 Generator::readData(char* data, qint64 maxlen)
@@ -149,10 +151,10 @@ qint64 Generator::readData(char* data, qint64 maxlen)
     const auto sr = m_format.sampleRate();
     const auto fmt = m_format.sampleFormat();
     const auto fmt_s = sizeofFmt(fmt);
-    const qsizetype sample_size = fmt_s * ch;
-    const qsizetype sample_count = maxlen / sample_size;
+    const qint64 sample_size = fmt_s * ch;
+    const qint64 sample_count = maxlen / sample_size;
 
-    qsizetype size = sample_count * sample_size;
+    qint64 size = sample_count * sample_size;
     if(m_status.type == eContentType::Realtime && sr > 0) {
         for(int i = 0; i < sample_count; i++) {
             double t = (double)i / (double)sr;
@@ -168,7 +170,7 @@ qint64 Generator::readData(char* data, qint64 maxlen)
             }
         }
     } else if(m_status.type == eContentType::Data && m_status.data) {
-        const qsizetype data_size = m_status.data->size() / sample_size;
+        const qint64 data_size = m_status.data->size() / sample_size;
         if(data_size > *m_status.cur && *m_status.cur >= 0) {
             if(size > (data_size - *m_status.cur) * sample_size) {
                 size = (data_size - *m_status.cur) * sample_size;
