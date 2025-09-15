@@ -162,7 +162,7 @@ qint64 Generator::readData(char* data, qint64 maxlen)
             double d = (0.6 * std::tanh(1.0 * std::sin(instantaneous_phase)));
             auto e = encodeData(d, fmt);
             for(int j = 0; j < ch; j++) {
-                const auto&& offset = (ch*i + j) * sample_size/ch;
+                const auto&& offset = (ch*i + j) * fmt_s;
                 memcpy(data + offset, e.data(), fmt_s);
             }
             if (i == sample_count - 1) {
