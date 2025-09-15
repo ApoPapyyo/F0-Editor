@@ -10,7 +10,7 @@ const int piano_black_structure[12] = {0, 1, 0, 3, 0, 0, 1, 0, 2, 0, 3, 0};
 Piano::Piano(const PitchEditor::Offset& offset_, const PitchEditor::Scale& scale_, const PitchEditor::Config& conf_, QWidget* parent)
     : QWidget{parent}
     , cursor()
-    , synth(44100)
+    , synth()
     , offset(offset_)
     , scale(scale_)
     , conf(conf_)

@@ -4,74 +4,167 @@
 #include <QAudioFormat>
 #include <QMediaDevices>
 #include <QObject>
+#include <QDebug>
 #include <iostream>
 #include <cmath>
 
 
-#define Warning(mes) std::cerr << QObject::tr("警告").toStdString() << ": " << mes << std::endl
-#define Error(mes) std::cerr << QObject::tr("エラー").toStdString() << ": " << mes << std::endl
+#define Warning(mes) qDebug() << QObject::tr("警告") << ": " << mes
+#define Error(mes) qDebug() << QObject::tr("エラー") << ": " << mes
+
 
 namespace {
-QByteArray generateContinuousSine(double time_per_frame, const QVector<double>& f0_data,
-                                  int sample_rate = 44100, int channel_count = 2)
+QByteArray encodeData(double data, QAudioFormat::SampleFormat format)
 {
-    const qint64 sample_size = sizeof(qint16) * channel_count;
+    QByteArray ret;
+    if(data < -1.0 || data > 1.0) return ret;
+
+    switch(format) {
+    case QAudioFormat::SampleFormat::Float:{
+        float d = data;
+        ret.resize(sizeof(float));
+        memcpy(ret.data(), &d, sizeof(float));
+        break;
+    }
+    case QAudioFormat::SampleFormat::Int16:{
+        qint16 d = static_cast<qint16>(data * 32767.0);
+        ret.resize(sizeof(qint16));
+        memcpy(ret.data(), &d, sizeof(qint16));
+        break;
+    }
+    case QAudioFormat::SampleFormat::Int32:{
+        qint32 d = static_cast<qint32>(data * 2147483647.0);
+        ret.resize(sizeof(qint32));
+        memcpy(ret.data(), &d, sizeof(qint32));
+        break;
+    }
+    case QAudioFormat::SampleFormat::UInt8:{
+        quint8 d = static_cast<quint8>(data * 128.0 + 128.0 > 255.0 ? 255.0 : data * 128.0 + 128.0);
+        ret.resize(sizeof(quint8));
+        memcpy(ret.data(), &d, sizeof(quint8));
+        break;
+    }
+    default:
+        break;
+    }
+
+    return ret;
+}
+
+double decodeData(const QByteArray& data, QAudioFormat::SampleFormat format)
+{
+    switch(format) {
+    case QAudioFormat::SampleFormat::Float:{
+        if(data.size() < sizeof(float)) break;
+        float d;
+        memcpy(&d, data.data(), sizeof(float));
+        return d;
+    }
+    case QAudioFormat::SampleFormat::Int16:{
+        if(data.size() < sizeof(qint16)) break;
+        qint16 d;
+        memcpy(&d, data.data(), sizeof(qint16));
+        return (double)d / 32767.0;
+    }
+    case QAudioFormat::SampleFormat::Int32:{
+        if(data.size() < sizeof(qint32)) break;
+        qint32 d;
+        memcpy(&d, data.data(), sizeof(qint32));
+        return (double)d / 2147483647.0;
+    }
+    case QAudioFormat::SampleFormat::UInt8:{
+        if(data.size() < sizeof(quint8)) break;
+        quint8 d;
+        memcpy(&d, data.data(), sizeof(quint8));
+        return ((double)d - 128.0) / 128.0;
+    }
+    default:
+        break;
+    }
+    return 0.0;
+}
+
+qsizetype sizeofFmt(QAudioFormat::SampleFormat format)
+{
+    switch(format) {
+    case QAudioFormat::SampleFormat::Float: return sizeof(float);
+    case QAudioFormat::SampleFormat::Int16: return sizeof(qint16);
+    case QAudioFormat::SampleFormat::Int32: return sizeof(qint32);
+    case QAudioFormat::SampleFormat::UInt8: return sizeof(quint8);
+    default: return 0;
+    }
+}
+
+QByteArray generateContinuousSine(double time_per_frame, const QVector<double>& f0_data,
+                                  QAudioFormat fmt)
+{
+    const qint64 fmt_size = sizeofFmt(fmt.sampleFormat());
+    const qint64 sample_rate = fmt.sampleRate();
+    const qint64 channel_count = fmt.channelCount();
+    const qint64 sample_size = fmt_size * channel_count;
     const qint64 frame_bytes = static_cast<qint64>(time_per_frame * sample_rate * sample_size);
     const qint64 total_bytes = frame_bytes * f0_data.size();
 
     QByteArray audio(total_bytes, 0);
 
-    Generator gen(sample_rate, channel_count);
+    Generator gen(fmt);
 
     for (int i = 0; i < f0_data.size(); ++i) {
         gen.setFreq(f0_data[i]);
         qint64 offset = i * frame_bytes;
         qint64 written = gen.readData(audio.data() + offset, frame_bytes);
+        if(written < 0) {
+            Error(QObject::tr("波形生成に失敗しました。"));
+            return QByteArray{};
+        }
     }
 
     return audio;
 }
 }
 
-
-Generator::Generator(int sr, int ch, QObject* parent)
+Generator::Generator(QAudioFormat format, QObject* parent)
     : QIODevice(parent)
-    , m_sr(sr)
-    , m_ch(ch)
+    , m_format(format)
     , m_status{eContentType::None, nullptr, &m_cur_dummy, 0.0, 0.0}
 {
-    open(QIODevice::ReadOnly);
+
+    if(m_format.isValid()) open(QIODevice::ReadOnly);
+    if(sizeofFmt(m_format.sampleFormat()) == 0) {
+        Error(tr("対応していないフォーマットです。:") << m_format);
+        return;
+    }
 }
 
 Generator::~Generator()
 {
-    close();
+    if(m_format.isValid() && sizeofFmt(m_format.sampleFormat()) > 0) close();
 }
 
 qint64 Generator::readData(char* data, qint64 maxlen)
 {
-    qint16 *_buf = reinterpret_cast<qint16*>(data);
-    const qsizetype sample_size = sizeof(qint16) * m_ch;
+    if(!m_format.isValid()) return -1;
+    if(sizeofFmt(m_format.sampleFormat()) <= 0) return -1;
+    const auto ch = m_format.channelCount();
+    const auto sr = m_format.sampleRate();
+    const auto fmt = m_format.sampleFormat();
+    const auto fmt_s = sizeofFmt(fmt);
+    const qsizetype sample_size = fmt_s * ch;
     const qsizetype sample_count = maxlen / sample_size;
 
-    //m_status.cur: 全チャンネル含めたサンプル単位
-    //なのでsample_sizeをかけるとバイト数になる
-
-    auto buf = [=](qsizetype i, int ch) -> qint16& {
-        if(ch >= m_ch) ch = 0;
-        return _buf[i * m_ch + ch];
-    };
-
     qsizetype size = sample_count * sample_size;
-
-    if(m_status.type == eContentType::Realtime && m_sr > 0) {
+    if(m_status.type == eContentType::Realtime && sr > 0) {
         for(int i = 0; i < sample_count; i++) {
-            double t = (double)i / (double)m_sr;
+            double t = (double)i / (double)sr;
             double instantaneous_phase = 2.0 * M_PI * m_status.freq * t + m_status.phase;
-            buf(i, 0) = static_cast<qint16>((0.6 * std::tanh(1.0 * std::sin(instantaneous_phase))) * 32767.0);
-            for(int j = 0; j < m_ch-1; j++) buf(i, j+1) = buf(i, j);
+            double d = (0.6 * std::tanh(1.0 * std::sin(instantaneous_phase)));
+            auto e = encodeData(d, fmt);
+            for(int j = 0; j < ch; j++) {
+                const auto&& offset = (ch*i + j) * sample_size/ch;
+                memcpy(data + offset, e.data(), fmt_s);
+            }
             if (i == sample_count - 1) {
-                m_status.phase = instantaneous_phase + 2.0 * M_PI * m_status.freq / (double)m_sr;
+                m_status.phase = instantaneous_phase + 2.0 * M_PI * m_status.freq / (double)sr;
             }
         }
     } else if(m_status.type == eContentType::Data && m_status.data) {
@@ -144,12 +237,17 @@ qsizetype Generator::getCur() const
 
 int Generator::getSampleRate() const
 {
-    return m_sr;
+    return m_format.sampleRate();
 }
 
 int Generator::getChannelCount() const
 {
-    return m_ch;
+    return m_format.channelCount();
+}
+
+QAudioFormat Generator::getFormat() const
+{
+    return m_format;
 }
 
 bool Generator::isPlaying() const
@@ -166,20 +264,17 @@ void Generator::setCurVar(qsizetype* v)
     }
 }
 
-Synth::Synth(int sr)
+Synth::Synth()
     : m_out(nullptr)
     , m_gen(nullptr)
 {
-    QAudioFormat format;
-    format.setSampleRate(sr);
-    format.setChannelCount(2);
-    format.setSampleFormat(QAudioFormat::Int16);
     // デフォルト出力デバイスを取得
     QAudioDevice dev = QMediaDevices::defaultAudioOutput();
+
+    QAudioFormat format = dev.preferredFormat();
     // 出力デバイス作成
     m_out = new QAudioSink(dev, format);
-
-    m_gen = new Generator();
+    m_gen = new Generator(format);
 }
 
 Synth::~Synth()
@@ -196,7 +291,7 @@ void Synth::setData(const QVector<double>& freqs, double time_per_frame)
 {
     if(freqs != m_freq_cache) {
         m_freq_cache = freqs;
-        m_sample_cache = generateContinuousSine(time_per_frame, m_freq_cache, m_gen->getSampleRate(), m_gen->getChannelCount());
+        m_sample_cache = generateContinuousSine(time_per_frame, m_freq_cache, m_gen->getFormat());
     }
     m_gen->setData(m_sample_cache);
 }
@@ -225,4 +320,19 @@ void Synth::stop()
 bool Synth::isPlaying() const
 {
     return m_gen->isPlaying();
+}
+
+int Synth::getSampleRate() const
+{
+    return m_gen->getSampleRate();
+}
+
+int Synth::getChannelCount() const
+{
+    return m_gen->getChannelCount();
+}
+
+int Synth::getFormatSize() const
+{
+    return sizeofFmt(m_gen->getFormat().sampleFormat());
 }

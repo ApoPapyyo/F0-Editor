@@ -3,7 +3,9 @@
 #include <cmath>
 #include <QMouseEvent>
 
-#define SAMPLE_RATE 44100
+#define SAMPLE_RATE player.synth.getSampleRate()
+#define CHANNEL player.synth.getChannelCount()
+#define FORMAT_SIZE player.synth.getFormatSize()
 
 namespace {
 int countTrue(const QBitArray& b)
@@ -23,7 +25,7 @@ PitchEditor::PitchEditor(QWidget* parent)
     , mouse{eMouseMode::Select, QPoint{0, 0}, false, false, false}
     , log{this}
     , conf{9, -1, 440.0, ScaleConfig{eScaleMode::Time, 0.0, 0.0}}
-    , player{Synth{SAMPLE_RATE}, 0, new QTimer(this)}
+    , player{Synth{}, 0, new QTimer(this)}
 {
     setMouseTracking(true);
     setFocusPolicy(Qt::StrongFocus);
@@ -275,6 +277,8 @@ void PitchEditor::closeF0()
 {
     log.f0_data.closeF0();
     offset.x = 0;
+    player.cur = 0;
+    player.synth.setFreq(0.0);
     mouse.select.target.clear();
     update();
 }

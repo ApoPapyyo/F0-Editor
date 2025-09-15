@@ -20,12 +20,11 @@ private:
         qsizetype* cur;
         double freq, phase;
     };
-    const int m_sr;
-    const int m_ch;
+    const QAudioFormat m_format;
     qsizetype m_cur_dummy;
     Status m_status;
 public:
-    Generator(int sample_rate = 44100, int channel_count = 2, QObject *parent = nullptr);
+    Generator(QAudioFormat format, QObject *parent = nullptr);
     ~Generator();
     void setFreq(double f);
     void setData(const QByteArray& data);
@@ -35,6 +34,7 @@ public:
     qint64 readData(char *data, qint64 maxlen) override;
     int getSampleRate() const;
     int getChannelCount() const;
+    QAudioFormat getFormat() const;
 
 protected:
     qint64 writeData(const char*, qint64) override;
@@ -46,7 +46,7 @@ class Synth {
     QVector<double> m_freq_cache;
     QByteArray m_sample_cache;
 public:
-    Synth(int sr);
+    Synth();
     ~Synth();
     void setData(const QVector<double>& freqs, double time_per_frame);
     void setFreq(double f);
@@ -54,6 +54,9 @@ public:
     void play();
     void stop();
     bool isPlaying() const;
+    int getSampleRate() const;
+    int getChannelCount() const;
+    int getFormatSize() const;
 
 };
 
