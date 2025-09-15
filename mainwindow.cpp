@@ -37,6 +37,7 @@ MainWindow::MainWindow(QWidget *parent)
     //connect(editor->get_pe(), &PitchEditor::undo_redo_tgl, this, &MainWindow::undo_redo_tgl);
     connect(ui->play_button, &QPushButton::pressed, editor->get_pe(), &PitchEditor::play);
     connect(ui->stop_button, &QPushButton::pressed, editor->get_pe(), &PitchEditor::stop);
+    connect(ui->tmpstop_button, &QPushButton::pressed, editor->get_pe(), &PitchEditor::pause);
 }
 
 MainWindow::~MainWindow()

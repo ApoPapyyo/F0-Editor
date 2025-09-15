@@ -308,12 +308,14 @@ void PitchEditor::stop()
     player.timer->stop();
     player.synth.stop();
     player.cur = 0;
+    update();
 }
 
 void PitchEditor::pause()
 {
     player.timer->stop();
     player.synth.stop();
+    update();
 }
 
 
