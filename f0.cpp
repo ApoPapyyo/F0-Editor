@@ -91,9 +91,9 @@ Note F0::getData(int i) const
     return Note();
 }
 
-QList<Note> F0::getData(int first, int size) const
+QVector<Note> F0::getData(int first, int size) const
 {
-    QList<Note> ret(size);
+    QVector<Note> ret(size);
     for(int i(0); i+first < _data.size() && i < size; i++) ret.append(_data[i+first]);
     return ret;
 }
@@ -104,7 +104,7 @@ void F0::setData(int i, Note d)
     if(0 < i && i < _data.size()) _data[i] = d;
 }
 
-void F0::setData(int first, const QList<Note> &ds)
+void F0::setData(int first, const QVector<Note> &ds)
 {
     _changed = true;
     if(0 < first && first < _data.size() && first + ds.size() < _data.size()) {
@@ -245,10 +245,10 @@ QString F0::getFileName() const
     return _path.fileName();
 }
 
-QList<double> F0::getFreq(const double A4) const
+QVector<double> F0::getFreq(const double A4) const
 {
-    if(_data.empty()) return QList<double>();
-    QList<double> ret;
+    if(_data.empty()) return QVector<double>();
+    QVector<double> ret;
     for(auto n: _data) {
         ret.append(n.toHz(A4));
     }

@@ -23,12 +23,15 @@ PitchEditor::PitchEditor(QWidget* parent)
     , mouse{eMouseMode::Select, QPoint{0, 0}, false, false, false}
     , log{this}
     , conf{9, -1, 440.0, ScaleConfig{eScaleMode::Time, 0.0, 0.0}}
-    , player{Synth{SAMPLE_RATE}, 0}
+    , player{Synth{SAMPLE_RATE}, 0, new QTimer(this)}
 {
     setMouseTracking(true);
     setFocusPolicy(Qt::StrongFocus);
     grabGesture(Qt::PinchGesture);
     player.synth.setCurVar(&player.cur);
+    connect(player.timer, &QTimer::timeout, this, [this]{
+        update();
+    });
 }
 
 int PitchEditor::notePos(const Note& n) const
@@ -141,6 +144,7 @@ void PitchEditor::paintEvent(QPaintEvent*)
     for(int i = 0; i < width(); i++) {
         const int cur = posCur(i);
 
+
         if(cur >= log.f0_data.getDataSize()) break;
         if(cur == last_cur) continue;
 
@@ -192,9 +196,18 @@ void PitchEditor::paintEvent(QPaintEvent*)
     }
 
     //縦線
+    if(!player.synth.isPlaying() && player.timer->isActive()) {
+        player.timer->stop();
+        player.cur = 0;
+    }
     painter.setPen(green);
     const qsizetype cur = player.cur * log.f0_data.getFPS() / SAMPLE_RATE;
-    painter.drawLine(curPos(cur), 0, curPos(cur), height());
+    if(player.synth.isPlaying()) {
+        if(curPos(cur) < 0 || curPos(cur) >= width()) {
+            for(offset.x = 0; curPos(cur) >= 0; offset.x++);
+        }
+        painter.drawLine(curPos(cur), 0, curPos(cur), height());
+    }
 
     for(int i = 0; i < width(); i++) {
 
@@ -277,6 +290,24 @@ void PitchEditor::saveF0as(const QString& path)
     QFileInfo tmp{path};
     log.f0_data.saveF0as(tmp);
     update();
+}
+
+void PitchEditor::play()
+{
+    player.synth.setData(log.f0_data.getFreq(conf.A4), 1.0 / (double)log.f0_data.getFPS());
+    player.timer->start(20);
+    player.synth.play();
+}
+
+void PitchEditor::stop()
+{
+    player.timer->stop();
+    player.cur = 0;
+}
+
+void PitchEditor::pause()
+{
+    player.timer->stop();
 }
 
 

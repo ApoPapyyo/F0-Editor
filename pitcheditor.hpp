@@ -7,6 +7,7 @@
 #include <QBitArray>
 #include <QMap>
 #include <QPoint>
+#include <QTimer>
 #include "synth.hpp"
 
 class PitchEditor : public QWidget
@@ -107,6 +108,7 @@ public:
     struct Player {
         Synth synth;
         qsizetype cur;
+        QTimer* timer;
     };
 
     bool init;
@@ -131,6 +133,9 @@ public slots:
     void closeF0();
     void saveF0();
     void saveF0as(const QString& path);
+    void play();
+    void stop();
+    void pause();
 
 protected:
     void paintEvent(QPaintEvent*) override;

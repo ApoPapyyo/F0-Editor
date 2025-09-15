@@ -20,21 +20,23 @@ private:
         qsizetype* cur;
         double freq, phase;
     };
-    int m_sr;
+    const int m_sr;
+    const int m_ch;
     qsizetype m_cur_dummy;
     Status m_status;
 public:
-    Generator(QObject *parent = nullptr);
+    Generator(int sample_rate = 44100, int channel_count = 2, QObject *parent = nullptr);
     ~Generator();
-    void setSampleRate(int sr);
     void setFreq(double f);
     void setData(const QByteArray& data);
     void setCurVar(qsizetype* v);
     qsizetype getCur() const;
     bool isPlaying() const;
+    qint64 readData(char *data, qint64 maxlen) override;
+    int getSampleRate() const;
+    int getChannelCount() const;
 
 protected:
-    qint64 readData(char *data, qint64 maxlen) override;
     qint64 writeData(const char*, qint64) override;
 };
 

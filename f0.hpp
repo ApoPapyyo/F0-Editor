@@ -4,7 +4,7 @@
 #include <QFile>
 #include <QString>
 #include <QFileInfo>
-#include <QList>
+#include <QVector>
 #include <cstdint>
 #include <QObject>
 #include <QWidget>
@@ -23,15 +23,15 @@ public:
     int getDataSize() const;
     Note getData(int i) const;
     QString getFileName() const;
-    QList<Note> getData(int first, int size) const;
+    QVector<Note> getData(int first, int size) const;
     void setData(int i, Note d);
-    void setData(int first, const QList<Note> &ds);
-    void setData(const QList<int> index, Note data);
-    QList<double> getFreq(const double A4 = 440.0) const;
+    void setData(int first, const QVector<Note> &ds);
+    void setData(const QVector<int> index, Note data);
+    QVector<double> getFreq(const double A4 = 440.0) const;
 private:
     QFileInfo _path;
-    QList<Note> _data;
-    QList<double> _cache;
+    QVector<Note> _data;
+    QVector<double> _cache;
     int _fps;
     bool _changed;
     QWidget* _parent;
