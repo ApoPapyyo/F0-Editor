@@ -275,6 +275,7 @@ void PitchEditor::openF0(const QString& path)
 
 void PitchEditor::closeF0()
 {
+    stop();
     log.f0_data.closeF0();
     offset.x = 0;
     player.cur = 0;
@@ -299,7 +300,7 @@ void PitchEditor::saveF0as(const QString& path)
 void PitchEditor::play()
 {
     player.synth.setData(log.f0_data.getFreq(conf.A4), 1.0 / (double)log.f0_data.getFPS());
-    player.timer->start(20);
+    player.timer->start(10);
     player.synth.play();
 }
 

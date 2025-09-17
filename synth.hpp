@@ -36,7 +36,11 @@ public:
     int getChannelCount() const;
     QAudioFormat getFormat() const;
 
+#ifdef Q_OS_MAC
+public:
+#else
 protected:
+#endif
     qint64 readData(char *data, qint64 maxlen) override;
     qint64 writeData(const char*, qint64) override;
 };

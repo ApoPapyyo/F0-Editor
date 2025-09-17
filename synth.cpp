@@ -273,18 +273,18 @@ Synth::Synth(QObject* parent)
     m_sink = new QAudioSink(dev, format, this);
     m_gen = new Generator(format, this);
 #ifdef Q_OS_MAC
+    const auto ch = format.channelCount();
+    const auto sr = format.sampleRate();
+    const auto fmt = format.sampleFormat();
+    const auto fmt_s = sizeofFmt(fmt);
+    const qint64 sample_size = fmt_s * ch;
     m_timer = new QTimer(this);
     auto push = m_sink->start();
     connect(m_timer, &QTimer::timeout, this, [=]() {
-        qint64 period = m_sink->periodSize();
-        if (period <= 0)
-            period = 4096; // fallback
-
-        if (m_sink->bytesFree() >= period) {
-            QByteArray buf = m_gen->read(period);
-            if (!buf.isEmpty())
-                push->write(buf);
-        }
+        QByteArray buf;
+        buf.resize((qint64)(sample_size * sr * 0.01));
+        m_gen->readData(buf.data(), (qint64)(sample_size * sr * 0.01));
+        push->write(buf);
     });
 #else
 #endif
@@ -321,7 +321,7 @@ void Synth::setCurVar(qint64* cur)
 void Synth::play()
 {
 #ifdef Q_OS_MAC
-    m_timer->start(5);
+    m_timer->start(10);
 #else
     m_sink->start(m_gen);
 #endif
@@ -329,10 +329,10 @@ void Synth::play()
 
 void Synth::stop()
 {
+    m_gen->setFreq(0.0);
 #ifdef Q_OS_MAC
     m_timer->stop();
 #else
-    m_gen->setFreq(0.0);
     m_sink->stop();
 #endif
 }
