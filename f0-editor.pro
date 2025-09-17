@@ -16,6 +16,7 @@ SOURCES += \
     note.cpp \
     piano.cpp \
     pitcheditor.cpp \
+    scale.cpp \
     synth.cpp
 
 HEADERS += \
@@ -25,6 +26,7 @@ HEADERS += \
     note.hpp \
     piano.hpp \
     pitcheditor.hpp \
+    scale.hpp \
     synth.hpp
 
 FORMS += \

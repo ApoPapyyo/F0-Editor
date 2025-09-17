@@ -24,8 +24,9 @@ PitchEditor::PitchEditor(QWidget* parent)
     , scale{1.0, 30}
     , mouse{eMouseMode::Select, QPoint{0, 0}, false, false, false}
     , log{this}
-    , conf{9, -1, 440.0, ScaleConfig{eScaleMode::Time, 0.0, 0.0}}
+    , conf{9, -1, 440.0, ScaleConfig{eScaleMode::Time, 0.0, 0.0}, true}
     , player{Synth{}, 0, new QTimer(this)}
+    , status{"", "", false, false}
 {
     setMouseTracking(true);
     setFocusPolicy(Qt::StrongFocus);
@@ -128,6 +129,14 @@ void PitchEditor::paintEvent(QPaintEvent*)
         for(offset.y = 0; notePos(Note{Note::eNoteName::C, 4, 0.0}) > height()/2; offset.y++);
     }
 
+    //イベント
+    status.undo_able = log.ableToUndo();
+    status.redo_able = log.ableToRedo();
+    if(!player.synth.isPlaying() && player.timer->isActive()) {
+        player.timer->stop();
+        player.cur = 0;
+    }
+
     //背景
     painter.setPen(gray);
     painter.setBrush(ggray);
@@ -198,14 +207,10 @@ void PitchEditor::paintEvent(QPaintEvent*)
     }
 
     //縦線
-    if(!player.synth.isPlaying() && player.timer->isActive()) {
-        player.timer->stop();
-        player.cur = 0;
-    }
     painter.setPen(green);
     const qsizetype cur = player.cur * log.f0_data.getFPS() / SAMPLE_RATE;
     if(player.synth.isPlaying()) {
-        if(curPos(cur) < 0 || curPos(cur) >= width()) {
+        if((curPos(cur) < 0 || curPos(cur) >= width()) && conf.auto_scroll) {
             for(offset.x = 0; curPos(cur) >= 0; offset.x++);
         }
         painter.drawLine(curPos(cur), 0, curPos(cur), height());
@@ -316,6 +321,18 @@ void PitchEditor::pause()
 {
     player.timer->stop();
     player.synth.stop();
+    update();
+}
+
+void PitchEditor::undo()
+{
+    if(log.ableToUndo()) log.undo();
+    update();
+}
+
+void PitchEditor::redo()
+{
+    if(log.ableToRedo()) log.redo();
     update();
 }
 

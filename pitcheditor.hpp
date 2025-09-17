@@ -104,11 +104,18 @@ public:
         int oct_max, oct_min;
         double A4;
         ScaleConfig scale;
+        bool auto_scroll;
     };
     struct Player {
         Synth synth;
         qsizetype cur;
         QTimer* timer;
+    };
+    struct Status {
+        QString wintitle;
+        QString statusbar;
+        bool undo_able, redo_able;
+
     };
 
     bool init;
@@ -119,6 +126,7 @@ public:
     OprLog log;
     Config conf;
     Player player;
+    Status status;
 
     Offset getScrollMax() const;
     Scale getScaleMax() const;
@@ -128,11 +136,15 @@ public:
 
     void setScale(double x, int y);
     void addScale(double x, int y);
+    bool ableToUndo() const;
+    bool ableToRedo() const;
 public slots:
     void openF0(const QString& path);
     void closeF0();
     void saveF0();
     void saveF0as(const QString& path);
+    void undo();
+    void redo();
     void play();
     void stop();
     void pause();
@@ -152,8 +164,7 @@ private:
     int curPos(int cur) const;
     int posCur(int x) const;
 signals:
-    void titleChange(const QString& title);
-    void stbarChange(const QString& mes);
+    void widgetChanged();
 
 };
 
